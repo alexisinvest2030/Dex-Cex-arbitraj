@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEX·DEX ARB SCANNER v4.2</title>
+<title>CEX·DEX ARB SCANNER v4.3</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
 :root{
@@ -225,8 +225,8 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
   <div class="logo">
     <div class="logo-hex">ARB</div>
     <div>
-      <div class="logo-name">CEX · DEX SCANNER v4.2</div>
-      <div class="logo-sub">WS BINANCE · JUP PRICE API · PYTH · DEFILLAMA BATCH · COINGECKO</div>
+      <div class="logo-name">CEX · DEX SCANNER v4.3</div>
+      <div class="logo-sub">WS BINANCE · JUP/LLAMA · PYTH · DEFILLAMA · CRYPTOCOMPARE</div>
     </div>
   </div>
   <div class="hbar">
@@ -243,7 +243,7 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
 
 <div class="api-bar">
   <div class="ab"><div class="ab-n">BINANCE</div><div class="ab-v wait" id="a-bnb">WAIT</div></div>
-  <div class="ab"><div class="ab-n">COINGECKO</div><div class="ab-v wait" id="a-cg">WAIT</div></div>
+  <div class="ab"><div class="ab-n">CRYPTOCOMPARE</div><div class="ab-v wait" id="a-cg">WAIT</div></div>
   <div class="ab"><div class="ab-n">JUPITER SOL</div><div class="ab-v wait" id="a-jup">WAIT</div></div>
   <div class="ab"><div class="ab-n">PYTH SUI</div><div class="ab-v wait" id="a-pyth">WAIT</div></div>
   <div class="ab"><div class="ab-n">DEFILLAMA</div><div class="ab-v wait" id="a-llama">WAIT</div></div>
@@ -599,14 +599,30 @@ const TOKENS = [
 // STATE
 // ═══════════════════════════════════════════════════
 let pm={}, scanN=0, fChain='all', cdVal=30, cdTmr=null, scTmr=null, sndOn=true;
-let cgCache = {}; // share CoinGecko data across functions
+let ccCache = {}; // CryptoCompare cache — shared across functions
 
-// ═══════════════════════════════════════════════════
-// FETCH HELPERS
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// FETCH LAYER
+//
+// CORS STATUS (verified pentru GitHub Pages HTTPS):
+//   Binance WebSocket   wss://stream.binance.com   ✅ no CORS (WS)
+//   Binance REST        api.binance.com             ✅ CORS: * (din browser)
+//   CryptoCompare       min-api.cryptocompare.com   ✅ CORS: * (fara API key)
+//   DeFiLlama           coins.llama.fi               ✅ CORS: *
+//   Pyth Hermes         hermes.pyth.network          ✅ CORS: *
+//   price.jup.ag        price.jup.ag                 ⚠ DNS intermitent
+//   CoinGecko free      api.coingecko.com            ❌ CORS blocat din 2024
+// ═══════════════════════════════════════════════════════════════════════════
+
+// CryptoCompare symbol mapping (unde simbolul difera de cel Binance)
+const CC_SYM = {
+  POL: 'MATIC',  // CoinGecko -> CryptoCompare name
+};
+function ccSym(sym) { return CC_SYM[sym] || sym; }
+
 async function safeFetch(url, ms = 9000) {
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), ms);
+  const tid  = setTimeout(() => ctrl.abort(), ms);
   try {
     const r = await fetch(url, { signal: ctrl.signal });
     clearTimeout(tid);
@@ -616,161 +632,121 @@ async function safeFetch(url, ms = 9000) {
 }
 
 // ══════════════════════════════════════════════════════════
-// 1. BINANCE — WebSocket miniTicker stream
-//    WebSocket nu are restricții CORS — funcționează din
-//    file://, content://, orice browser Android/desktop.
-//    Deschidem stream-ul combinat pentru toate perechile,
-//    colectăm prețurile 3s, apoi închidem.
+// 1. BINANCE WebSocket — bid/ask real, fara CORS
 // ══════════════════════════════════════════════════════════
-let wsPrices   = {};   // { SYM: { mid, bid, ask } }  — actualizat live
-let wsReady    = false;
-let wsConn     = null;
-let wsLastTick = 0;
-
-function buildWsStream() {
-  // Binance combined stream: wss://stream.binance.com:9443/stream?streams=sym1@bookTicker/sym2@bookTicker
-  // bookTicker dă bid/ask real în timp real, fără CORS
-  const streams = TOKENS
-    .map(t => t.pair.toLowerCase() + '@bookTicker')
-    .join('/');
-  return `wss://stream.binance.com:9443/stream?streams=${streams}`;
-}
+let wsPrices = {}, wsReady = false, wsConn = null, wsLastTick = 0;
 
 function connectWs() {
-  if (wsConn && wsConn.readyState <= 1) return; // already open/connecting
+  if (wsConn && wsConn.readyState <= 1) return;
   try {
-    wsConn = new WebSocket(buildWsStream());
-    wsConn.onopen  = () => { setApi('a-bnb', 'WS ✓ live', 'ok'); wsReady = true; };
-    wsConn.onclose = () => {
-      wsReady = false;
-      setApi('a-bnb', 'WS reconect...', 'warn');
-      setTimeout(connectWs, 3000); // auto-reconnect
-    };
-    wsConn.onerror = () => { wsReady = false; setApi('a-bnb', 'WS ERR', 'err'); };
+    const streams = TOKENS.map(t => t.pair.toLowerCase() + '@bookTicker').join('/');
+    wsConn = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+    wsConn.onopen    = () => { wsReady = true; setApi('a-bnb', `WS ✓`, 'ok'); };
+    wsConn.onclose   = () => { wsReady = false; setApi('a-bnb', 'WS reconect', 'warn'); setTimeout(connectWs, 3000); };
+    wsConn.onerror   = () => { wsReady = false; };
     wsConn.onmessage = (e) => {
       try {
-        const msg  = JSON.parse(e.data);
-        const d    = msg.data || msg;
-        const sym  = d.s;  // e.g. "SOLUSDC"
-        const tk   = TOKENS.find(t => t.pair === sym);
+        const d   = JSON.parse(e.data).data || JSON.parse(e.data);
+        const tk  = TOKENS.find(t => t.pair === d.s);
         if (!tk) return;
-        const bid  = parseFloat(d.b);
-        const ask  = parseFloat(d.a);
-        if (!bid || !ask || bid <= 0 || ask <= 0) return;
-        wsPrices[tk.sym] = { bid, ask, mid: (bid + ask) / 2 };
-        wsLastTick = Date.now();
+        const bid = parseFloat(d.b), ask = parseFloat(d.a);
+        if (bid > 0 && ask > 0) { wsPrices[tk.sym] = { bid, ask, mid: (bid+ask)/2 }; wsLastTick = Date.now(); }
       } catch(_) {}
     };
-  } catch(e) {
-    setApi('a-bnb', 'WS N/A', 'err');
-  }
+  } catch(e) { setApi('a-bnb', 'WS N/A', 'err'); }
 }
 
-// Get current Binance prices from WS cache;
-// if WS stale >60s fall back to CoinGecko
-function getBinancePrices(cgPrices) {
-  const wsAge = Date.now() - wsLastTick;
-  const hasWs = Object.keys(wsPrices).length > 0 && wsAge < 60000;
-
+function getBinancePrices(ccPrices) {
+  const age   = Date.now() - wsLastTick;
+  const hasWs = Object.keys(wsPrices).length > 0 && age < 60000;
   if (hasWs) {
     setApi('a-bnb', `WS ✓ ${Object.keys(wsPrices).length}tk`, 'ok');
-    return wsPrices;
+    return { ...wsPrices }; // return copy
   }
-
-  // WebSocket not ready yet — use CoinGecko as interim CEX price
-  if (Object.keys(cgPrices).length > 0) {
-    setApi('a-bnb', 'WS init...CG', 'warn');
+  // WS not ready yet — use CryptoCompare prices as interim CEX reference
+  if (Object.keys(ccPrices).length > 0) {
+    setApi('a-bnb', 'WS init...', 'warn');
     const out = {};
     for (const tk of TOKENS) {
-      if (!cgPrices[tk.sym]) continue;
-      const mid  = cgPrices[tk.sym].price;
+      if (!ccPrices[tk.sym]) continue;
+      const mid  = ccPrices[tk.sym];
       const half = TIER_SPREAD[TIER[tk.sym] || 'tier3'] * 0.3;
       out[tk.sym] = { mid, bid: mid*(1-half), ask: mid*(1+half) };
     }
     return out;
   }
-
   setApi('a-bnb', 'NO DATA', 'err');
   return null;
 }
 
 // ══════════════════════════════════════════════════════════
-// 2. COINGECKO — prețuri de referință + fallback DEX
-//    CORS permisiv, funcționează de oriunde
+// 2. CRYPTOCOMPARE — fallback universal, CORS open (*)
+//    Inlocuieste CoinGecko care a blocat CORS in 2024.
+//    Gratuit: 250k calls/luna, fara API key, CORS: *
+//    Un singur request pentru toti tokenii.
 // ══════════════════════════════════════════════════════════
-async function fetchCoinGecko() {
+async function fetchCryptoCompare() {
   try {
-    const ids  = [...new Set(TOKENS.map(t => t.cg))].join(',');
-    const data = await safeFetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
-      12000
+    const syms  = [...new Set(TOKENS.map(t => ccSym(t.sym)))].join(',');
+    const data  = await safeFetch(
+      `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${syms}&tsyms=USD`,
+      11000
     );
+    // Response: { "BTC": { "USD": 65000 }, "ETH": { "USD": 3400 }, ... }
     const out = {};
     for (const tk of TOKENS) {
-      if (data[tk.cg]?.usd > 0) out[tk.sym] = { price: data[tk.cg].usd };
+      const sym = ccSym(tk.sym);
+      if (data[sym]?.USD > 0) out[tk.sym] = data[sym].USD;
     }
-    setApi('a-cg', `OK ${Object.keys(out).length}tk`, 'ok');
+    const n = Object.keys(out).length;
+    setApi('a-cg', `CC ${n}tk`, n > 0 ? 'ok' : 'warn');
+    ccCache = out;
     return out;
   } catch(e) {
-    setApi('a-cg', 'ERR', 'err');
-    addAlert('b', `CoinGecko: ${e.message}`);
+    setApi('a-cg', `CC ERR`, 'err');
+    addAlert('b', `CryptoCompare: ${e.message}`);
     return {};
   }
 }
 
 // ══════════════════════════════════════════════════════════
-// 3. SOLANA PRICES — waterfall: Jupiter Price API → DeFiLlama → CoinGecko
-//  quote-api.jup.ag are DNS issues din unele retele/browsere.
-//  price.jup.ag si api.jup.ag sunt pe CDN-uri diferite — mai stabile.
+// 3. SOLANA DEX PRICES
+//    A) price.jup.ag/v4 — CORS open dar DNS intermitent
+//    B) DeFiLlama cu Solana mint addresses — CORS open, stabil
+//    C) CryptoCompare cache (deja fetched)
 // ══════════════════════════════════════════════════════════
 const USDC_SOL = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 async function fetchJupiter() {
   const solTk = TOKENS.filter(t => t.jMint);
   if (!solTk.length) return {};
-  const ids = solTk.map(t => t.jMint).join(',');
+  const mintIds = solTk.map(t => t.jMint).join(',');
 
-  // A) Jupiter Price API v4 — un singur GET, CORS open, CDN separat
+  // A) Jupiter Price v4 — single request, CORS open
   try {
-    const data = await safeFetch(`https://price.jup.ag/v4/price?ids=${ids}`, 10000);
-    if (data && data.data) {
+    const data = await safeFetch(`https://price.jup.ag/v4/price?ids=${mintIds}`, 9000);
+    if (data?.data) {
       const out = {};
       for (const tk of solTk) {
         const e = data.data[tk.jMint];
-        if (e && e.price > 0) out[tk.sym] = e.price;
+        if (e?.price > 0) out[tk.sym] = e.price;
       }
-      if (Object.keys(out).length > 0) {
-        setApi('a-jup', `OK ${Object.keys(out).length}tk (v4)`, 'ok');
+      if (Object.keys(out).length >= solTk.length * 0.5) {
+        setApi('a-jup', `Jup ${Object.keys(out).length}tk`, 'ok');
         return out;
       }
     }
   } catch(_) {}
 
-  // B) Jupiter API v2 price endpoint
-  try {
-    const data = await safeFetch(`https://api.jup.ag/price/v2?ids=${ids}`, 10000);
-    if (data && data.data) {
-      const out = {};
-      for (const tk of solTk) {
-        const e = data.data[tk.jMint];
-        if (e && e.price > 0) out[tk.sym] = e.price;
-      }
-      if (Object.keys(out).length > 0) {
-        setApi('a-jup', `OK ${Object.keys(out).length}tk (v2)`, 'ok');
-        return out;
-      }
-    }
-  } catch(_) {}
-
-  // C) DeFiLlama cu mint addresses Solana
+  // B) DeFiLlama Solana mint addresses — CORS open, stabil
   try {
     const llamaIds = solTk.map(t => `solana:${t.jMint}`).join(',');
     const data = await safeFetch(`https://coins.llama.fi/prices/current/${llamaIds}`, 10000);
-    if (data && data.coins) {
+    if (data?.coins) {
       const out = {};
       for (const tk of solTk) {
         const e = data.coins[`solana:${tk.jMint}`];
-        if (e && e.price > 0) out[tk.sym] = e.price;
+        if (e?.price > 0) out[tk.sym] = e.price;
       }
       if (Object.keys(out).length > 0) {
         setApi('a-jup', `Llama ${Object.keys(out).length}tk`, 'warn');
@@ -779,21 +755,18 @@ async function fetchJupiter() {
     }
   } catch(_) {}
 
-  // D) Toate esuate — cgCache fallback (global)
-  setApi('a-jup', 'CG fallback', 'warn');
+  // C) CryptoCompare cache
+  setApi('a-jup', 'CC↓', 'warn');
   return {};
 }
 
 // ══════════════════════════════════════════════════════════
-// 4. PYTH — preț oracle pentru SUI
-//    Doar SUI are feed Pyth verificat; restul (DEEP/CETUS/NS)
-//    merg direct pe CoinGecko
+// 4. PYTH — SUI oracle prices, CORS open
 // ══════════════════════════════════════════════════════════
 async function fetchPyth() {
   const suiTk = TOKENS.filter(t => t.chain === 'sui' && t.pyth);
   if (!suiTk.length) { setApi('a-pyth', 'N/A', 'wait'); return {}; }
   try {
-    // Hermes v2 endpoint — CORS open, funcționează din orice browser
     const idsParam = suiTk.map(t => `ids[]=${t.pyth}`).join('&');
     const data = await safeFetch(
       `https://hermes.pyth.network/v2/updates/price/latest?${idsParam}&parsed=true`,
@@ -801,52 +774,43 @@ async function fetchPyth() {
     );
     const out = {};
     for (const feed of (data?.parsed || [])) {
-      // feed.id este fără 0x prefix în răspuns
-      const fullId = '0x' + feed.id;
-      const tk     = suiTk.find(t => t.pyth === fullId);
+      const tk    = suiTk.find(t => t.pyth === '0x' + feed.id);
       if (!tk) continue;
-      const pd    = feed.price;
-      const price = parseFloat(pd.price) * Math.pow(10, parseInt(pd.expo));
+      const price = parseFloat(feed.price.price) * Math.pow(10, parseInt(feed.price.expo));
       if (price > 0 && isFinite(price)) out[tk.sym] = price;
     }
     const n = Object.keys(out).length;
     setApi('a-pyth', n > 0 ? `OK ${n}tk` : 'NO FEED', n > 0 ? 'ok' : 'warn');
     return out;
   } catch(e) {
-    setApi('a-pyth', 'CG↓', 'warn');
+    setApi('a-pyth', 'CC↓', 'warn');
     return {};
   }
 }
 
 // ══════════════════════════════════════════════════════════
-// 5. DEFILLAMA — prețuri on-chain EVM (Arb/Base/BSC/etc)
-//    Împărțit în batch-uri de 10 ca să evităm 414 URI Too Long
+// 5. DEFILLAMA — prețuri on-chain EVM, CORS open
+//    Batch de 8 tokens per request (URL length limit)
 // ══════════════════════════════════════════════════════════
 async function fetchLlama() {
   const llamaTk = TOKENS.filter(t => t.llama);
   if (!llamaTk.length) return {};
-  const out = {};
-  // Batch of 10 tokens per request
-  const BATCH = 10;
-  try {
-    for (let i = 0; i < llamaTk.length; i += BATCH) {
-      const batch = llamaTk.slice(i, i + BATCH);
-      const coins = batch.map(t => t.llama).join(',');
-      try {
-        const data = await safeFetch(`https://coins.llama.fi/prices/current/${coins}`, 10000);
-        for (const tk of batch) {
-          const entry = data.coins?.[tk.llama];
-          if (entry?.price > 0) out[tk.sym] = entry.price;
-        }
-      } catch(_) { /* batch failed, skip */ }
-    }
-    const n = Object.keys(out).length;
-    setApi('a-llama', n > 0 ? `OK ${n}tk` : 'PARTIAL', n > 0 ? 'ok' : 'warn');
-    return out;
-  } catch(e) {
-    setApi('a-llama', 'ERR', 'err');
-    return out;
+  const out   = {};
+  const BATCH = 8;
+  let   ok    = 0;
+  for (let i = 0; i < llamaTk.length; i += BATCH) {
+    const batch = llamaTk.slice(i, i + BATCH);
+    const coins = batch.map(t => t.llama).join(',');
+    try {
+      const data = await safeFetch(`https://coins.llama.fi/prices/current/${coins}`, 10000);
+      for (const tk of batch) {
+        const e = data.coins?.[tk.llama];
+        if (e?.price > 0) { out[tk.sym] = e.price; ok++; }
+      }
+    } catch(_) {}
   }
+  setApi('a-llama', ok > 0 ? `OK ${ok}tk` : 'PARTIAL', ok > 0 ? 'ok' : 'warn');
+  return out;
 }
 
 // ═══════════════════════════════════════════════════
@@ -892,18 +856,19 @@ async function runScan() {
   setDot('var(--warn)', 'SCANNING');
   document.getElementById('scan-btn').textContent = '⟳ SCANNING';
 
-  // Step 1: CoinGecko — bază pentru tot
-  cgCache = await fetchCoinGecko();
+  // Step 1: CryptoCompare — universal price reference (CORS open, inlocuieste CoinGecko)
+  const ccPrices = await fetchCryptoCompare();
+  ccCache = ccPrices;
 
-  // Step 2: DEX prices în paralel
+  // Step 2: DEX prices in paralel
   const [jupData, pythData, llamaData] = await Promise.all([
     fetchJupiter(),
     fetchPyth(),
     fetchLlama(),
   ]);
 
-  // Step 3: Binance din WebSocket cache (fără await — instant)
-  const bnbData = getBinancePrices(cgCache);
+  // Step 3: Binance din WebSocket cache (instant, fara await)
+  const bnbData = getBinancePrices(ccPrices);
 
   if (!bnbData || Object.keys(bnbData).length === 0) {
     setDot('var(--loss)', 'NO DATA');
@@ -927,8 +892,8 @@ async function runScan() {
       dexPrice = pythData[tk.sym]; dexSrc = 'live'; // Pyth oracle
     } else if (tk.llama && llamaData[tk.sym]) {
       dexPrice = llamaData[tk.sym]; dexSrc = 'live'; // DeFiLlama on-chain
-    } else if (cgCache[tk.sym]) {
-      dexPrice = cgSpread(tk.sym, cgCache[tk.sym].price); dexSrc = 'cg'; // CG + spread model
+    } else if (ccCache[tk.sym]) {
+      dexPrice = cgSpread(tk.sym, ccCache[tk.sym]); dexSrc = 'cg'; // CryptoCompare + spread model
     } else if (cex.mid) {
       dexPrice = cgSpread(tk.sym, cex.mid); dexSrc = 'sim'; // synthetic
     }
@@ -1175,9 +1140,9 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tkct').textContent = TOKENS.length;
   // Pornește WebSocket imediat — se populează în background
   connectWs();
-  addAlert('i', `v4.2: WS Binance + Jupiter Price API + DeFiLlama batch`);
-  addAlert('i', 'Sol: price.jup.ag → api.jup.ag → DeFiLlama → CoinGecko');
-  addAlert('i', 'Asteapta 3s pentru WS Binance sa primeasca primele preturi...');
+  addAlert('i', `v4.3: CoinGecko INLOCUIT cu CryptoCompare (CORS open)`);
+  addAlert('i', 'CEX: WS Binance | SOL: Jupiter/DeFiLlama | EVM: DeFiLlama | SUI: Pyth');
+  addAlert('i', 'Astept 3s pentru WS Binance...');
   setTimeout(() => doScan(), 3000);
 });
 </script>
