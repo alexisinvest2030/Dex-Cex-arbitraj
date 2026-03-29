@@ -1,19 +1,20 @@
-# CEX·DEX ARB SCANNER v4.2
-
-Scanner de arbitraj CEX-DEX în timp real — 8 chains, 44 tokeni.
+# CEX·DEX ARB SCANNER v4.3
 
 **Live:** https://alexisinvest2030.github.io/Dex-Cex-arbitraj/
 
-## Surse prețuri
-| Sursă | Ce acoperă | Endpoint |
-|-------|-----------|----------|
-| Binance WebSocket | Toate perechile | `wss://stream.binance.com` bookTicker |
-| Jupiter Price API | Solana tokens | `price.jup.ag/v4` → `api.jup.ag/price/v2` |
-| DeFiLlama (batch) | EVM chains | `coins.llama.fi` în batch de 10 |
-| Pyth Hermes | SUI | `hermes.pyth.network/v2` |
-| CoinGecko | Fallback universal | `api.coingecko.com` |
+## Fix v4.3 — rezolvat CORS GitHub Pages
+| API | Status | Motiv |
+|-----|--------|-------|
+| Binance WebSocket | ✅ OK | WS nu are CORS |
+| CryptoCompare | ✅ OK | CORS `*`, înlocuiește CoinGecko |
+| DeFiLlama | ✅ OK | CORS `*` |
+| Jupiter price.jup.ag | ✅ OK | CORS `*` |
+| Pyth Hermes | ✅ OK | CORS `*` |
+| ~~CoinGecko free~~ | ❌ BLOCAT | CORS blocat din 2024 |
 
-## Fix v4.2
-- Jupiter: `quote-api.jup.ag` → `price.jup.ag` (DNS mai stabil)
-- DeFiLlama: batch de 10 tokens (evită 414 URI Too Long)
-- Waterfall complet pentru Solana: Jupiter → DeFiLlama Solana → CoinGecko
+## Arhitectura
+- **CEX prices**: Binance WebSocket bookTicker (bid/ask real)
+- **SOL**: price.jup.ag → DeFiLlama Solana mint → CryptoCompare
+- **EVM**: DeFiLlama on-chain (batch 8) → CryptoCompare  
+- **SUI**: Pyth Hermes oracle → CryptoCompare
+- **Fallback**: CryptoCompare (250k calls/luna gratuit, CORS open)
