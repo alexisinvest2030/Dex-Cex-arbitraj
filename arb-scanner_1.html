@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEX·DEX ARB SCANNER v4.1</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
+:root{
+  --bg:#04060f;--bg2:#070b18;--bg3:#0a1020;--panel:#090f1e;--border:#162338;
+  --accent:#00c8f0;--profit:#00e89a;--loss:#ff3a65;--warn:#ffaa00;
+  --text:#b8cce8;--dim:#3a5070;
+  --sol:#9945ff;--arb:#1ca6ff;--base:#0052ff;--bsc:#f0b90b;
+  --pol:#8247e5;--avax:#e84142;--op:#ff0420;--sui:#4da2ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,200,240,.02) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,200,240,.02) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;top:-2px;left:0;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  animation:scan 12s linear infinite;opacity:.3;pointer-events:none;z-index:1;}
+@keyframes scan{0%{top:-1px}100%{top:100%}}
+.wrap{position:relative;z-index:2;max-width:1820px;margin:0 auto;padding:12px;}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:11px 17px;background:var(--panel);border:1px solid var(--border);
+  border-bottom:2px solid var(--accent);margin-bottom:12px;position:relative;overflow:hidden;}
+header::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(120deg,rgba(0,200,240,.06),transparent 55%);}
+.logo{display:flex;align-items:center;gap:11px;}
+.logo-hex{width:40px;height:40px;background:rgba(0,200,240,.1);border:2px solid var(--accent);
+  clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron',monospace;font-size:10px;font-weight:900;color:var(--accent);
+  animation:hp 2.5s ease-in-out infinite;flex-shrink:0;}
+@keyframes hp{0%,100%{box-shadow:0 0 8px rgba(0,200,240,.3)}50%{box-shadow:0 0 20px rgba(0,200,240,.6)}}
+.logo-name{font-family:'Orbitron',sans-serif;font-weight:900;font-size:16px;letter-spacing:4px;color:var(--accent);}
+.logo-sub{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--dim);letter-spacing:2px;margin-top:2px;}
+.hbar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+.hv{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;color:var(--profit);}
+.hl{font-size:8px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;}
+.pill{display:flex;align-items:center;gap:6px;padding:5px 11px;border:1px solid var(--profit);
+  font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--profit);background:rgba(0,232,154,.07);}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--profit);
+  box-shadow:0 0 8px var(--profit);animation:bl 1.4s ease-in-out infinite;}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* API STATUS */
+.api-bar{display:flex;gap:0;margin-bottom:11px;border:1px solid var(--border);overflow-x:auto;}
+.ab{flex:1;min-width:90px;padding:5px 8px;text-align:center;border-right:1px solid var(--border);}
+.ab:last-child{border-right:none;}
+.ab-n{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;}
+.ab-v{font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;margin-top:2px;}
+.ab-v.ok{color:var(--profit)}.ab-v.err{color:var(--loss)}.ab-v.warn{color:var(--warn)}.ab-v.wait{color:var(--dim)}
+
+/* CONTROLS */
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
+.btn{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;
+  padding:7px 14px;border:1px solid var(--accent);background:rgba(0,200,240,.07);
+  color:var(--accent);cursor:pointer;transition:all .18s;
+  clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);}
+.btn:hover,.btn:active{background:rgba(0,200,240,.22);}
+.btn.ok{border-color:var(--profit);color:var(--profit);background:rgba(0,232,154,.07);}
+.btn.ok:hover{background:rgba(0,232,154,.22);}
+.btn.err{border-color:var(--loss);color:var(--loss);}
+.chain-pills{display:flex;gap:5px;flex-wrap:wrap;}
+.cp{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;
+  padding:4px 9px;border:1px solid;cursor:pointer;transition:all .15s;border-radius:2px;}
+.cp:not(.on){opacity:.38;}.cp.on{opacity:1;filter:brightness(1.2);}
+.cp-all{border-color:#aaa;color:#aaa;}
+.cp-sol{border-color:var(--sol);color:var(--sol);}
+.cp-arb{border-color:var(--arb);color:var(--arb);}
+.cp-base{border-color:var(--base);color:var(--base);}
+.cp-bsc{border-color:var(--bsc);color:var(--bsc);}
+.cp-pol{border-color:var(--pol);color:var(--pol);}
+.cp-avax{border-color:var(--avax);color:var(--avax);}
+.cp-op{border-color:var(--op);color:var(--op);}
+.cp-sui{border-color:var(--sui);color:var(--sui);}
+.sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
+.lbl{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);}
+.mi{background:var(--panel);border:1px solid var(--border);color:var(--accent);
+  font-family:'Share Tech Mono',monospace;font-size:12px;padding:5px 8px;width:68px;outline:none;}
+.mi:focus{border-color:var(--accent);}
+.rtimer{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);}
+.rtimer span{color:var(--accent);font-size:14px;}
+
+/* LAYOUT */
+.grid2{display:grid;grid-template-columns:1fr 288px;gap:12px;}
+@media(max-width:1100px){.grid2{grid-template-columns:1fr;}}
+
+/* PANEL */
+.panel{background:var(--panel);border:1px solid var(--border);position:relative;overflow:hidden;}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.ph{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,200,240,.04);}
+.pt{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:var(--accent);}
+.pm{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);}
+
+/* TABLE */
+.tw{overflow-x:auto;max-height:calc(100vh - 240px);overflow-y:auto;}
+.tw::-webkit-scrollbar{width:4px;height:4px;}
+.tw::-webkit-scrollbar-thumb{background:var(--border);}
+table{width:100%;border-collapse:collapse;min-width:700px;}
+thead th{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;
+  color:var(--dim);text-transform:uppercase;padding:8px 8px;text-align:left;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+  position:sticky;top:0;background:var(--panel);z-index:5;}
+th.r{text-align:right;}th.c{text-align:center;}
+tbody tr{border-bottom:1px solid rgba(22,35,56,.5);transition:background .1s;cursor:pointer;}
+tbody tr:hover{background:rgba(0,200,240,.04);}
+td{padding:7px 8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;white-space:nowrap;}
+td.r{text-align:right;}td.c{text-align:center;}
+td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
+
+.sdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle;}
+.s-live{background:var(--profit)}.s-cg{background:var(--accent)}.s-sim{background:var(--warn)}
+
+.tc{display:flex;align-items:center;gap:7px;}
+.ti{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:7px;font-weight:700;font-family:'Orbitron',monospace;flex-shrink:0;}
+.tn{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:#ddeeff;letter-spacing:1px;}
+.tch{font-size:8px;color:var(--dim);margin-top:1px;}
+.cb{font-family:'Share Tech Mono',monospace;font-size:7px;padding:1px 4px;border-radius:2px;border:1px solid;}
+.cb-sol{border-color:var(--sol);color:var(--sol);}
+.cb-arb{border-color:var(--arb);color:var(--arb);}
+.cb-base{border-color:var(--base);color:var(--base);}
+.cb-bsc{border-color:var(--bsc);color:var(--bsc);}
+.cb-pol{border-color:var(--pol);color:var(--pol);}
+.cb-avax{border-color:var(--avax);color:var(--avax);}
+.cb-op{border-color:var(--op);color:var(--op);}
+.cb-sui{border-color:var(--sui);color:var(--sui);}
+
+.sp{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;}
+.sp-hot{color:var(--profit);text-shadow:0 0 8px rgba(0,232,154,.4);}
+.sp-warm{color:var(--warn);}
+.sp-cold{color:var(--loss);}
+.pv{font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:700;}
+.pv-pos{color:var(--profit);}
+.pv-neg{color:var(--loss);}
+.pv-0{color:var(--dim);}
+.db{font-family:'Share Tech Mono',monospace;font-size:8px;padding:2px 6px;border:1px solid;}
+.d-bc{border-color:var(--profit);color:var(--profit);}
+.d-sc{border-color:var(--loss);color:var(--loss);}
+.xbtn{font-family:'Share Tech Mono',monospace;font-size:9px;padding:3px 9px;border:1px solid;cursor:pointer;}
+.xbtn.go{border-color:var(--profit);color:var(--profit);}
+.xbtn.go:hover{background:rgba(0,232,154,.2);}
+.xbtn.no{border-color:var(--dim);color:var(--dim);}
+.ld td,.empty td{text-align:center;padding:40px;color:var(--dim);
+  font-family:'Share Tech Mono',monospace;font-size:11px;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* SIDEBAR */
+.sb{display:flex;flex-direction:column;gap:10px;}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.sbox{background:var(--panel);border:1px solid var(--border);padding:10px;position:relative;}
+.sbox::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.sbox.c .sv{color:var(--accent);}.sbox.c::after{background:linear-gradient(90deg,var(--accent),transparent);}
+.sbox.g .sv{color:var(--profit);}.sbox.g::after{background:linear-gradient(90deg,var(--profit),transparent);}
+.sbox.w .sv{color:var(--warn);}.sbox.w::after{background:linear-gradient(90deg,var(--warn),transparent);}
+.sbox.r .sv{color:var(--loss);}.sbox.r::after{background:linear-gradient(90deg,var(--loss),transparent);}
+.sv{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;line-height:1;}
+.sl2{font-size:9px;color:var(--dim);letter-spacing:2px;margin-top:4px;text-transform:uppercase;}
+.ft{width:100%;font-family:'Share Tech Mono',monospace;}
+.ft td{padding:4px 9px;border-bottom:1px solid rgba(22,35,56,.5);font-size:9px;}
+.ft td:last-child{text-align:right;color:var(--accent);}
+.ft tr.hi td{color:var(--warn);}
+.al{max-height:220px;overflow-y:auto;padding:6px;}
+.al::-webkit-scrollbar{width:3px;}.al::-webkit-scrollbar-thumb{background:var(--border);}
+.ai{padding:6px 8px;margin-bottom:4px;border-left:3px solid;background:rgba(0,0,0,.3);
+  animation:sli .22s ease-out;}
+@keyframes sli{from{transform:translateX(-6px);opacity:0}to{transform:translateX(0);opacity:1}}
+.ai.g{border-color:var(--profit)}.ai.w{border-color:var(--warn)}.ai.b{border-color:var(--loss)}.ai.i{border-color:var(--accent)}
+.ai-t{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--dim);}
+.ai-m{font-family:'Share Tech Mono',monospace;font-size:9px;margin-top:1px;}
+.ai.g .ai-m{color:var(--profit)}.ai.w .ai-m{color:var(--warn)}.ai.b .ai-m{color:var(--loss)}.ai.i .ai-m{color:var(--accent)}
+
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(4,6,15,.9);z-index:100;
+  align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.ov.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--accent);
+  box-shadow:0 0 40px rgba(0,200,240,.15);width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;
+  animation:mi .2s ease-out;}
+@keyframes mi{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;
+  border-bottom:1px solid var(--border);background:rgba(0,200,240,.05);position:sticky;top:0;z-index:2;}
+.mt{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:3px;}
+.mc{background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;}
+.mc:hover{color:var(--text);}
+.mb{padding:14px;}
+.og{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.ob{background:var(--bg3);border:1px solid var(--border);padding:10px;}
+.obt{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:5px;}
+.obv{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;}
+.obs{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);margin-top:3px;}
+.steps{list-style:none;counter-reset:s;}
+.steps li{counter-increment:s;display:flex;gap:9px;align-items:flex-start;padding:6px 0;
+  border-bottom:1px solid rgba(22,35,56,.4);font-family:'Share Tech Mono',monospace;font-size:10px;}
+.steps li::before{content:counter(s);font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;
+  color:var(--accent);border:1px solid var(--accent);width:17px;height:17px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ma{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.ma a{text-decoration:none;flex:1;}
+.ma .btn{width:100%;text-align:center;}
+.wbox{background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.3);
+  padding:8px 10px;margin-top:10px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--warn);}
+
+/* BOTTOM */
+.bb{margin-top:10px;padding:6px 12px;background:var(--panel);border:1px solid var(--border);
+  display:flex;flex-wrap:wrap;gap:12px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);}
+.bb .a{color:var(--accent)}.bb .p{color:var(--profit)}.bb .w{color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo">
+    <div class="logo-hex">ARB</div>
+    <div>
+      <div class="logo-name">CEX · DEX SCANNER v4.1</div>
+      <div class="logo-sub">BINANCE WS bookTicker · JUPITER · PYTH · DEFILLAMA · COINGECKO</div>
+    </div>
+  </div>
+  <div class="hbar">
+    <div><div class="hv" id="h-opps">–</div><div class="hl">Oportunități</div></div>
+    <div><div class="hv" id="h-best">–</div><div class="hl">Best Spread</div></div>
+    <div><div class="hv" id="h-scans">0</div><div class="hl">Scanări</div></div>
+    <div class="pill">
+      <div class="dot" id="dot"></div>
+      <span id="st">BOOT</span>
+      <button style="background:none;border:none;font-size:14px;cursor:pointer;padding:0 0 0 6px;" id="snd">🔔</button>
+    </div>
+  </div>
+</header>
+
+<div class="api-bar">
+  <div class="ab"><div class="ab-n">BINANCE</div><div class="ab-v wait" id="a-bnb">WAIT</div></div>
+  <div class="ab"><div class="ab-n">COINGECKO</div><div class="ab-v wait" id="a-cg">WAIT</div></div>
+  <div class="ab"><div class="ab-n">JUPITER SOL</div><div class="ab-v wait" id="a-jup">WAIT</div></div>
+  <div class="ab"><div class="ab-n">PYTH SUI</div><div class="ab-v wait" id="a-pyth">WAIT</div></div>
+  <div class="ab"><div class="ab-n">DEFILLAMA</div><div class="ab-v wait" id="a-llama">WAIT</div></div>
+  <div class="ab"><div class="ab-n">SCAN TIME</div><div class="ab-v wait" id="a-time">–</div></div>
+</div>
+
+<div class="ctrl">
+  <span class="lbl">CHAIN:</span>
+  <div class="chain-pills">
+    <div class="cp cp-all on" data-chain="all">ALL</div>
+    <div class="cp cp-sol"  data-chain="sol">SOL</div>
+    <div class="cp cp-arb"  data-chain="arb">ARB</div>
+    <div class="cp cp-base" data-chain="base">BASE</div>
+    <div class="cp cp-bsc"  data-chain="bsc">BSC</div>
+    <div class="cp cp-pol"  data-chain="pol">MATIC</div>
+    <div class="cp cp-avax" data-chain="avax">AVAX</div>
+    <div class="cp cp-op"   data-chain="op">OP</div>
+    <div class="cp cp-sui"  data-chain="sui">SUI</div>
+  </div>
+  <div class="sep"></div>
+  <span class="lbl">MIN%</span>
+  <input class="mi" type="number" id="msp" value="0.3" step="0.05" min="0">
+  <span class="lbl">TRADE$</span>
+  <input class="mi" type="number" id="tsz" value="500" min="50" step="50">
+  <button class="btn ok" id="scan-btn" onclick="doScan()">⟳ SCAN NOW</button>
+  <label style="display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;">
+    <input type="checkbox" id="po"> PROFIT+ ONLY
+  </label>
+  <div class="rtimer">Auto: <span id="cd">30</span>s</div>
+</div>
+
+<div class="grid2">
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">OPORTUNITĂȚI ARB</div>
+      <div class="pm" id="upd">–</div>
+    </div>
+    <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);display:flex;align-items:center;gap:4px;">
+        <span class="sdot s-live"></span>DEX live API
+      </span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);display:flex;align-items:center;gap:4px;">
+        <span class="sdot s-cg"></span>CoinGecko ±spread
+      </span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);display:flex;align-items:center;gap:4px;">
+        <span class="sdot s-sim"></span>Estimat
+      </span>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>TOKEN</th>
+            <th class="r">CEX BID/ASK</th>
+            <th class="r">DEX PRICE</th>
+            <th class="c">SRC</th>
+            <th class="r">SPREAD</th>
+            <th class="r">GROSS</th>
+            <th class="r">FEES</th>
+            <th class="r">NET*</th>
+            <th class="c">DIR</th>
+            <th class="c">ACT</th>
+          </tr>
+        </thead>
+        <tbody id="tb">
+          <tr class="ld"><td colspan="10"><span class="spin"></span>Se inițializează...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:5px 10px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);border-top:1px solid var(--border);">
+      * Net = Gross − (Binance 0.075%×2 + Withdraw + Gas + Slippage 0.2%) | Trade: $<span id="tsd">500</span>
+    </div>
+  </div>
+
+  <div class="sb">
+    <div class="sg">
+      <div class="sbox g"><div class="sv" id="s-p">–</div><div class="sl2">Profitabile</div></div>
+      <div class="sbox w"><div class="sv" id="s-m">–</div><div class="sl2">Marginale</div></div>
+      <div class="sbox r"><div class="sv" id="s-n">–</div><div class="sl2">Negative</div></div>
+      <div class="sbox c"><div class="sv" id="s-t">–</div><div class="sl2">Tokeni</div></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><div class="pt">FEES / CHAIN</div></div>
+      <table class="ft">
+        <tr class="hi"><td>Binance BNB rebate ×2</td><td>0.150%</td></tr>
+        <tr><td>Withdraw Arb (LINK/ETH/UNI)</td><td>$0.20</td></tr>
+        <tr><td>Withdraw Solana</td><td>$0.30</td></tr>
+        <tr><td>Withdraw BSC (BNB/CAKE)</td><td>$0.10</td></tr>
+        <tr><td>Withdraw Polygon</td><td>$0.08</td></tr>
+        <tr><td>Withdraw AVAX</td><td>$0.15</td></tr>
+        <tr><td>Withdraw OP / Base</td><td>$0.10-0.15</td></tr>
+        <tr><td>Withdraw SUI</td><td>$0.15</td></tr>
+        <tr><td>Gas Sol (Jupiter)</td><td>~$0.001</td></tr>
+        <tr><td>Gas EVM L2 (Arb/Base/OP)</td><td>~$0.10</td></tr>
+        <tr><td>Gas BSC / Polygon</td><td>~$0.05</td></tr>
+        <tr><td>Gas AVAX</td><td>~$0.08</td></tr>
+        <tr><td>Gas Sui</td><td>~$0.01</td></tr>
+        <tr><td>Slippage DEX max</td><td>0.20%</td></tr>
+      </table>
+    </div>
+    <div class="panel" style="flex:1">
+      <div class="ph">
+        <div class="pt">ALERTS</div>
+        <button class="btn" style="font-size:8px;padding:2px 7px;" onclick="clrAl()">CLR</button>
+      </div>
+      <div class="al" id="af">
+        <div class="ai i"><div class="ai-t">–</div><div class="ai-m">Scanner v4 boot...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bb">
+  <span>⚠ <span class="w">Scaner educativ</span> — verifică prețul înainte de execuție</span>
+  <span>🟢 live API · 🔵 CoinGecko±spread · 🟡 estimat</span>
+  <span>Tokeni: <span class="p" id="tkct">43</span> | Chains: <span class="p">8</span></span>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="ov" id="ov">
+  <div class="modal">
+    <div class="mh"><div class="mt">📊 DETALII</div><button class="mc" onclick="closeModal()">✕</button></div>
+    <div class="mb">
+      <div class="og" id="mg"></div>
+      <div id="ms"></div>
+      <div id="mw"></div>
+      <div class="ma" id="ma"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════
+const CEX_FEE = 0.00075; // 0.075% per leg
+const SLIP    = 0.002;   // 0.2%
+let   TRADE   = 500;
+
+// Liquidity tiers → realistic half-spread applied to CoinGecko price
+// when no live DEX API is available
+const TIER_SPREAD = {
+  tier1: 0.0004,  // ETH, BNB, SOL, AVAX, POL — very liquid
+  tier2: 0.0010,  // LINK, UNI, ARB, AAVE, LDO, OP, SUI
+  tier3: 0.0022,  // CAKE, RAY, JUP, JOE, SNX, GMX, RENDER
+  tier4: 0.0045,  // PENDLE, VELO, QUICK, PNG, CETUS, DEEP
+  tier5: 0.0090,  // BAKE, BRETT, VIRTUAL, HIGHER, POPCAT, NS, FUD
+};
+const TIER = {
+  ETH:'tier1',BNB:'tier1',SOL:'tier1',AVAX:'tier1',POL:'tier1',
+  LINK:'tier2',UNI:'tier2',ARB:'tier2',AAVE:'tier2',LDO:'tier2',OP:'tier2',SUI:'tier2',
+  RENDER:'tier2',JUP:'tier2',WIF:'tier2',BONK:'tier2',
+  CAKE:'tier3',RAY:'tier3',JOE:'tier3',SNX:'tier3',GMX:'tier3',PYTH:'tier3',JITO:'tier3',
+  PENDLE:'tier4',VELO:'tier4',QUICK:'tier4',PNG:'tier4',CETUS:'tier4',DEEP:'tier4',
+  GNS:'tier4',RDNT:'tier4',AERO:'tier4',SAND:'tier4',MANA:'tier4',XVS:'tier4',
+  QI:'tier4',PERP:'tier4',MNGO:'tier4',
+  BAKE:'tier5',BRETT:'tier5',VIRTUAL:'tier5',HIGHER:'tier5',POPCAT:'tier5',NS:'tier5',
+};
+
+function cgSpread(sym, price) {
+  const half = TIER_SPREAD[TIER[sym] || 'tier4'];
+  // Slightly biased: DEX can be above or below
+  const sign = Math.random() > 0.5 ? 1 : -1;
+  const mag  = half * (0.5 + Math.random() * 0.5); // 50-100% of half-spread
+  return price * (1 + sign * mag);
+}
+
+// ═══════════════════════════════════════════════════
+// TOKEN DB
+// ═══════════════════════════════════════════════════
+const TOKENS = [
+  // ── SOLANA — Jupiter Quote API (live) ─────────────
+  {sym:'SOL',    name:'Solana',        chain:'sol',color:'#9945ff',bg:'rgba(153,69,255,.15)',
+   pair:'SOLUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-SOL',
+   wFee:0.30,gas:0.001, jMint:'So11111111111111111111111111111111111111112',jDec:9,  cg:'solana'},
+  {sym:'JUP',    name:'Jupiter',       chain:'sol',color:'#c7b830',bg:'rgba(199,184,48,.15)',
+   pair:'JUPUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-JUP',
+   wFee:0.30,gas:0.001, jMint:'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',jDec:6,cg:'jupiter-exchange-solana'},
+  {sym:'RAY',    name:'Raydium',       chain:'sol',color:'#00e5ff',bg:'rgba(0,229,255,.15)',
+   pair:'RAYUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-RAY',
+   wFee:0.30,gas:0.001, jMint:'4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',jDec:6,cg:'raydium'},
+  {sym:'RENDER', name:'Render',        chain:'sol',color:'#f04e23',bg:'rgba(240,78,35,.15)',
+   pair:'RENDERUSDC',dex:'Jupiter',    url:'https://jup.ag/swap/USDC-RENDER',
+   wFee:0.30,gas:0.001, jMint:'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof',jDec:8,cg:'render-token'},
+  {sym:'BONK',   name:'Bonk',          chain:'sol',color:'#ff8800',bg:'rgba(255,136,0,.15)',
+   pair:'BONKUSDC',  dex:'Jupiter',    url:'https://jup.ag/swap/USDC-BONK',
+   wFee:0.30,gas:0.001, jMint:'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',jDec:5,cg:'bonk'},
+  {sym:'WIF',    name:'dogwifhat',     chain:'sol',color:'#e879f9',bg:'rgba(232,121,249,.15)',
+   pair:'WIFUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-WIF',
+   wFee:0.30,gas:0.001, jMint:'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',jDec:6,cg:'dogwifcoin'},
+  {sym:'PYTH',   name:'Pyth Network',  chain:'sol',color:'#6b46c1',bg:'rgba(107,70,193,.15)',
+   pair:'PYTHUSDC',  dex:'Jupiter',    url:'https://jup.ag/swap/USDC-PYTH',
+   wFee:0.30,gas:0.001, jMint:'HZ1JovNiVvGqNLQLjjxkhn7gXrvX3ShR6QZm8Ybhezxs',jDec:6,cg:'pyth-network'},
+  {sym:'JITO',   name:'Jito',          chain:'sol',color:'#16a34a',bg:'rgba(22,163,74,.15)',
+   pair:'JITOUSDC',  dex:'Jupiter',    url:'https://jup.ag/swap/USDC-JITO',
+   wFee:0.30,gas:0.001, jMint:'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',jDec:9,cg:'jito-governance'},
+  {sym:'POPCAT', name:'Popcat',        chain:'sol',color:'#f97316',bg:'rgba(249,115,22,.15)',
+   pair:'POPCATUSDC',dex:'Jupiter',    url:'https://jup.ag/swap/USDC-POPCAT',
+   wFee:0.30,gas:0.001, jMint:'7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr',jDec:9,cg:'popcat'},
+  {sym:'MNGO',   name:'Mango',         chain:'sol',color:'#ffb830',bg:'rgba(255,184,48,.15)',
+   pair:'MNGOUSDT',  dex:'Jupiter',    url:'https://jup.ag/swap/USDC-MNGO',
+   wFee:0.30,gas:0.001, jMint:'MangoCzJ36AjZyKwVneo188JBXGxAcQTDwwvReSCqHn',jDec:6,cg:'mango-markets'},
+
+  // ── ARBITRUM — DeFiLlama live + CG spread fallback ──
+  {sym:'ETH',    name:'Ethereum',      chain:'arb',color:'#627eea',bg:'rgba(98,126,234,.15)',
+   pair:'ETHUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'ethereum',
+   llama:'coingecko:ethereum'},
+  {sym:'LINK',   name:'Chainlink',     chain:'arb',color:'#2a5ada',bg:'rgba(42,90,218,.15)',
+   pair:'LINKUSDC',  dex:'1inch/Arb',  url:'https://app.1inch.io/#/42161/simple/swap/LINK/USDC',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'chainlink',
+   llama:'coingecko:chainlink'},
+  {sym:'UNI',    name:'Uniswap',       chain:'arb',color:'#ff007a',bg:'rgba(255,0,122,.15)',
+   pair:'UNIUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'uniswap',
+   llama:'coingecko:uniswap'},
+  {sym:'ARB',    name:'Arbitrum',      chain:'arb',color:'#1ca6ff',bg:'rgba(28,166,255,.15)',
+   pair:'ARBUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'arbitrum',
+   llama:'arbitrum:0x912CE59144191C1204E64559FE8253a0e49E6548'},
+  {sym:'GMX',    name:'GMX',           chain:'arb',color:'#00d8a0',bg:'rgba(0,216,160,.15)',
+   pair:'GMXUSDC',   dex:'GMX DEX',    url:'https://app.gmx.io/#/trade',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'gmx',
+   llama:'arbitrum:0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a'},
+  {sym:'PENDLE', name:'Pendle',        chain:'arb',color:'#a78bfa',bg:'rgba(167,139,250,.15)',
+   pair:'PENDLEUSDC',dex:'Pendle AMM', url:'https://app.pendle.finance/trade/swap',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'pendle'},
+  {sym:'LDO',    name:'Lido DAO',      chain:'arb',color:'#17abbc',bg:'rgba(23,171,188,.15)',
+   pair:'LDOUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'lido-dao'},
+  {sym:'AAVE',   name:'Aave',          chain:'arb',color:'#b6509e',bg:'rgba(182,80,158,.15)',
+   pair:'AAVEUSDC',  dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'aave'},
+  {sym:'GNS',    name:'Gains Network', chain:'arb',color:'#00e676',bg:'rgba(0,230,118,.15)',
+   pair:'GNSUSDT',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'gains-network'},
+  {sym:'RDNT',   name:'Radiant',       chain:'arb',color:'#7b5ea7',bg:'rgba(123,94,167,.15)',
+   pair:'RDNTUSDT',  dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'radiant-capital'},
+
+  // ── BASE ────────────────────────────────────────────
+  {sym:'AERO',   name:'Aerodrome',     chain:'base',color:'#ff4b4b',bg:'rgba(255,75,75,.15)',
+   pair:'AEROUSDC',  dex:'Aerodrome',  url:'https://aerodrome.finance/swap',
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'aerodrome-finance',
+   llama:'base:0x940181a94A35A4569E4529A3CDfB74e38FD98631'},
+  {sym:'BRETT',  name:'Brett',         chain:'base',color:'#5ba4cf',bg:'rgba(91,164,207,.15)',
+   pair:'BRETTUSDC', dex:'Uniswap/Base',url:'https://app.uniswap.org/#/swap?chain=base',
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'based-brett',
+   llama:'base:0x532f27101965dd16442E59d40670FaF5eBB142E4'},
+  {sym:'VIRTUAL',name:'Virtuals',      chain:'base',color:'#7c3aed',bg:'rgba(124,58,237,.15)',
+   pair:'VIRTUALUSDC',dex:'Uniswap/Base',url:'https://app.uniswap.org/#/swap?chain=base',
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'virtual-protocol',
+   llama:'base:0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b'},
+  {sym:'HIGHER', name:'Higher',        chain:'base',color:'#06b6d4',bg:'rgba(6,182,212,.15)',
+   pair:'HIGHERUSDT', dex:'Uniswap/Base',url:'https://app.uniswap.org/#/swap?chain=base',
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'higher'},
+
+  // ── BSC ─────────────────────────────────────────────
+  {sym:'BNB',    name:'BNB',           chain:'bsc',color:'#f0b90b',bg:'rgba(240,185,11,.15)',
+   pair:'BNBUSDC',   dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
+   wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'binancecoin',
+   llama:'coingecko:binancecoin'},
+  {sym:'CAKE',   name:'PancakeSwap',   chain:'bsc',color:'#1fc7d4',bg:'rgba(31,199,212,.15)',
+   pair:'CAKEUSDC',  dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
+   wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'pancakeswap-token',
+   llama:'bsc:0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82'},
+  {sym:'XVS',    name:'Venus',         chain:'bsc',color:'#cf5c00',bg:'rgba(207,92,0,.15)',
+   pair:'XVSUSDT',   dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
+   wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'venus',
+   llama:'bsc:0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63'},
+  {sym:'BAKE',   name:'BakeryToken',   chain:'bsc',color:'#ffca28',bg:'rgba(255,202,40,.15)',
+   pair:'BAKEUSDT',  dex:'BakerySwap', url:'https://www.bakeryswap.org/#/swap',
+   wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'bakerytoken',
+   llama:'bsc:0xE02dF9e3e622DeBdD69fb838bB799E3F168902c5'},
+
+  // ── POLYGON ─────────────────────────────────────────
+  {sym:'POL',    name:'Polygon',       chain:'pol',color:'#8247e5',bg:'rgba(130,71,229,.15)',
+   pair:'POLUSDC',   dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'matic-network',
+   llama:'coingecko:matic-network'},
+  {sym:'QUICK',  name:'QuickSwap',     chain:'pol',color:'#5389c5',bg:'rgba(83,137,197,.15)',
+   pair:'QUICKUSDC', dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'quickswap',
+   llama:'polygon:0xB5C064F955D8e7F38fE0460C556a72987494eE17'},
+  {sym:'SAND',   name:'The Sandbox',   chain:'pol',color:'#04adef',bg:'rgba(4,173,239,.15)',
+   pair:'SANDUSDC',  dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'the-sandbox'},
+  {sym:'MANA',   name:'Decentraland',  chain:'pol',color:'#ff2d55',bg:'rgba(255,45,85,.15)',
+   pair:'MANAUSDC',  dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'decentraland'},
+
+  // ── AVALANCHE ───────────────────────────────────────
+  {sym:'AVAX',   name:'Avalanche',     chain:'avax',color:'#e84142',bg:'rgba(232,65,66,.15)',
+   pair:'AVAXUSDC',  dex:'Trader Joe', url:'https://traderjoexyz.com/avalanche/trade',
+   wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'avalanche-2',
+   llama:'coingecko:avalanche-2'},
+  {sym:'JOE',    name:'Trader Joe',    chain:'avax',color:'#ff6b35',bg:'rgba(255,107,53,.15)',
+   pair:'JOEUSDC',   dex:'Trader Joe', url:'https://traderjoexyz.com/avalanche/trade',
+   wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'joe',
+   llama:'avax:0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd'},
+  {sym:'PNG',    name:'Pangolin',      chain:'avax',color:'#fd6150',bg:'rgba(253,97,80,.15)',
+   pair:'PNGUSDT',   dex:'Pangolin',   url:'https://app.pangolin.exchange/#/swap',
+   wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'pangolin',
+   llama:'avax:0x60781C2586D68229fde47564546784ab3fACA982'},
+  {sym:'QI',     name:'BENQI',         chain:'avax',color:'#00d1ff',bg:'rgba(0,209,255,.15)',
+   pair:'QIUSDT',    dex:'Pangolin',   url:'https://app.pangolin.exchange/#/swap',
+   wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'benqi',
+   llama:'avax:0x8729438EB15e2C8B576fCc6AeCdA6A148776C0F5'},
+
+  // ── OPTIMISM ────────────────────────────────────────
+  {sym:'OP',     name:'Optimism',      chain:'op',color:'#ff0420',bg:'rgba(255,4,32,.15)',
+   pair:'OPUSDC',    dex:'Velodrome',  url:'https://velodrome.finance/swap',
+   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'optimism',
+   llama:'optimism:0x4200000000000000000000000000000000000042'},
+  {sym:'VELO',   name:'Velodrome',     chain:'op',color:'#e7117a',bg:'rgba(231,17,122,.15)',
+   pair:'VELOUSDT',  dex:'Velodrome',  url:'https://velodrome.finance/swap',
+   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'velodrome-finance',
+   llama:'optimism:0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db'},
+  {sym:'SNX',    name:'Synthetix',     chain:'op',color:'#00d1ff',bg:'rgba(0,209,255,.15)',
+   pair:'SNXUSDC',   dex:'Uniswap/OP', url:'https://app.uniswap.org/#/swap?chain=optimism',
+   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'havven',
+   llama:'optimism:0x8700dAec35aF8Ff88c16BdF0418774CB3D7599B4'},
+  {sym:'PERP',   name:'Perpetual',     chain:'op',color:'#3aff8f',bg:'rgba(58,255,143,.15)',
+   pair:'PERPUSDC',  dex:'Uniswap/OP', url:'https://app.uniswap.org/#/swap?chain=optimism',
+   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'perpetual-protocol'},
+
+  // ── SUI — Pyth oracle prices ──────────────────────────
+  // Price IDs from https://pyth.network/price-feeds (Pythnet source)
+  // SUI/USD: verified stable ID
+  {sym:'SUI',    name:'Sui',           chain:'sui',color:'#4da2ff',bg:'rgba(77,162,255,.15)',
+   pair:'SUIUSDC',   dex:'Cetus DEX',  url:'https://app.cetus.zone/swap',
+   wFee:0.15,gas:0.01, jMint:null,jDec:0, cg:'sui',
+   pyth:'0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744'},
+  // DEEP/USD — no Pyth feed yet, use CoinGecko
+  {sym:'DEEP',   name:'DeepBook',      chain:'sui',color:'#0ea5e9',bg:'rgba(14,165,233,.15)',
+   pair:'DEEPUSDT',  dex:'Cetus DEX',  url:'https://app.cetus.zone/swap',
+   wFee:0.15,gas:0.01, jMint:null,jDec:0, cg:'deep-book',
+   pyth:null},
+  // CETUS/USD — no Pyth feed yet
+  {sym:'CETUS',  name:'Cetus',         chain:'sui',color:'#2563eb',bg:'rgba(37,99,235,.15)',
+   pair:'CETUSUSDT', dex:'Cetus DEX',  url:'https://app.cetus.zone/swap',
+   wFee:0.15,gas:0.01, jMint:null,jDec:0, cg:'cetus-protocol',
+   pyth:null},
+  // NS — no Pyth feed
+  {sym:'NS',     name:'Sui Name Svc',  chain:'sui',color:'#38bdf8',bg:'rgba(56,189,248,.15)',
+   pair:'NSUSDT',    dex:'FlowX',      url:'https://flowx.finance/swap',
+   wFee:0.15,gas:0.01, jMint:null,jDec:0, cg:'sui-name-service',
+   pyth:null},
+];
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let pm={}, scanN=0, fChain='all', cdVal=30, cdTmr=null, scTmr=null, sndOn=true;
+let cgCache = {}; // share CoinGecko data across functions
+
+// ═══════════════════════════════════════════════════
+// FETCH HELPERS
+// ═══════════════════════════════════════════════════
+async function safeFetch(url, ms = 9000) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch(e) { clearTimeout(tid); throw e; }
+}
+
+// ══════════════════════════════════════════════════════════
+// 1. BINANCE — WebSocket miniTicker stream
+//    WebSocket nu are restricții CORS — funcționează din
+//    file://, content://, orice browser Android/desktop.
+//    Deschidem stream-ul combinat pentru toate perechile,
+//    colectăm prețurile 3s, apoi închidem.
+// ══════════════════════════════════════════════════════════
+let wsPrices   = {};   // { SYM: { mid, bid, ask } }  — actualizat live
+let wsReady    = false;
+let wsConn     = null;
+let wsLastTick = 0;
+
+function buildWsStream() {
+  // Binance combined stream: wss://stream.binance.com:9443/stream?streams=sym1@bookTicker/sym2@bookTicker
+  // bookTicker dă bid/ask real în timp real, fără CORS
+  const streams = TOKENS
+    .map(t => t.pair.toLowerCase() + '@bookTicker')
+    .join('/');
+  return `wss://stream.binance.com:9443/stream?streams=${streams}`;
+}
+
+function connectWs() {
+  if (wsConn && wsConn.readyState <= 1) return; // already open/connecting
+  try {
+    wsConn = new WebSocket(buildWsStream());
+    wsConn.onopen  = () => { setApi('a-bnb', 'WS ✓ live', 'ok'); wsReady = true; };
+    wsConn.onclose = () => {
+      wsReady = false;
+      setApi('a-bnb', 'WS reconect...', 'warn');
+      setTimeout(connectWs, 3000); // auto-reconnect
+    };
+    wsConn.onerror = () => { wsReady = false; setApi('a-bnb', 'WS ERR', 'err'); };
+    wsConn.onmessage = (e) => {
+      try {
+        const msg  = JSON.parse(e.data);
+        const d    = msg.data || msg;
+        const sym  = d.s;  // e.g. "SOLUSDC"
+        const tk   = TOKENS.find(t => t.pair === sym);
+        if (!tk) return;
+        const bid  = parseFloat(d.b);
+        const ask  = parseFloat(d.a);
+        if (!bid || !ask || bid <= 0 || ask <= 0) return;
+        wsPrices[tk.sym] = { bid, ask, mid: (bid + ask) / 2 };
+        wsLastTick = Date.now();
+      } catch(_) {}
+    };
+  } catch(e) {
+    setApi('a-bnb', 'WS N/A', 'err');
+  }
+}
+
+// Get current Binance prices from WS cache;
+// if WS stale >60s fall back to CoinGecko
+function getBinancePrices(cgPrices) {
+  const wsAge = Date.now() - wsLastTick;
+  const hasWs = Object.keys(wsPrices).length > 0 && wsAge < 60000;
+
+  if (hasWs) {
+    setApi('a-bnb', `WS ✓ ${Object.keys(wsPrices).length}tk`, 'ok');
+    return wsPrices;
+  }
+
+  // WebSocket not ready yet — use CoinGecko as interim CEX price
+  if (Object.keys(cgPrices).length > 0) {
+    setApi('a-bnb', 'WS init...CG', 'warn');
+    const out = {};
+    for (const tk of TOKENS) {
+      if (!cgPrices[tk.sym]) continue;
+      const mid  = cgPrices[tk.sym].price;
+      const half = TIER_SPREAD[TIER[tk.sym] || 'tier3'] * 0.3;
+      out[tk.sym] = { mid, bid: mid*(1-half), ask: mid*(1+half) };
+    }
+    return out;
+  }
+
+  setApi('a-bnb', 'NO DATA', 'err');
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════
+// 2. COINGECKO — prețuri de referință + fallback DEX
+//    CORS permisiv, funcționează de oriunde
+// ══════════════════════════════════════════════════════════
+async function fetchCoinGecko() {
+  try {
+    const ids  = [...new Set(TOKENS.map(t => t.cg))].join(',');
+    const data = await safeFetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
+      12000
+    );
+    const out = {};
+    for (const tk of TOKENS) {
+      if (data[tk.cg]?.usd > 0) out[tk.sym] = { price: data[tk.cg].usd };
+    }
+    setApi('a-cg', `OK ${Object.keys(out).length}tk`, 'ok');
+    return out;
+  } catch(e) {
+    setApi('a-cg', 'ERR', 'err');
+    addAlert('b', `CoinGecko: ${e.message}`);
+    return {};
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 3. JUPITER QUOTE — prețuri DEX live pe Solana
+// ══════════════════════════════════════════════════════════
+const USDC_SOL = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+async function fetchJupiter() {
+  const solTk  = TOKENS.filter(t => t.jMint);
+  const results = await Promise.allSettled(solTk.map(async tk => {
+    try {
+      const amt = Math.round(TRADE * 1e6);
+      const d   = await safeFetch(
+        `https://quote-api.jup.ag/v6/quote?inputMint=${USDC_SOL}&outputMint=${tk.jMint}&amount=${amt}&slippageBps=20`,
+        9000
+      );
+      if (!d.outAmount) return null;
+      const outTokens = parseInt(d.outAmount) / Math.pow(10, tk.jDec);
+      return { sym: tk.sym, price: TRADE / outTokens };
+    } catch(_) { return null; }
+  }));
+  const out = {};
+  results.forEach(r => { if (r.status==='fulfilled' && r.value) out[r.value.sym] = r.value.price; });
+  const n = Object.keys(out).length;
+  setApi('a-jup', n > 0 ? `OK ${n}tk` : 'TIMEOUT', n > 0 ? 'ok' : 'warn');
+  return out;
+}
+
+// ══════════════════════════════════════════════════════════
+// 4. PYTH — preț oracle pentru SUI
+//    Doar SUI are feed Pyth verificat; restul (DEEP/CETUS/NS)
+//    merg direct pe CoinGecko
+// ══════════════════════════════════════════════════════════
+async function fetchPyth() {
+  const suiTk = TOKENS.filter(t => t.chain === 'sui' && t.pyth);
+  if (!suiTk.length) { setApi('a-pyth', 'N/A', 'wait'); return {}; }
+  try {
+    // Hermes v2 endpoint — CORS open, funcționează din orice browser
+    const idsParam = suiTk.map(t => `ids[]=${t.pyth}`).join('&');
+    const data = await safeFetch(
+      `https://hermes.pyth.network/v2/updates/price/latest?${idsParam}&parsed=true`,
+      9000
+    );
+    const out = {};
+    for (const feed of (data?.parsed || [])) {
+      // feed.id este fără 0x prefix în răspuns
+      const fullId = '0x' + feed.id;
+      const tk     = suiTk.find(t => t.pyth === fullId);
+      if (!tk) continue;
+      const pd    = feed.price;
+      const price = parseFloat(pd.price) * Math.pow(10, parseInt(pd.expo));
+      if (price > 0 && isFinite(price)) out[tk.sym] = price;
+    }
+    const n = Object.keys(out).length;
+    setApi('a-pyth', n > 0 ? `OK ${n}tk` : 'NO FEED', n > 0 ? 'ok' : 'warn');
+    return out;
+  } catch(e) {
+    setApi('a-pyth', 'CG↓', 'warn');
+    return {};
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 5. DEFILLAMA — prețuri on-chain EVM (Arb/Base/BSC/etc)
+// ══════════════════════════════════════════════════════════
+async function fetchLlama() {
+  const llamaTk = TOKENS.filter(t => t.llama);
+  if (!llamaTk.length) return {};
+  try {
+    const coins = llamaTk.map(t => t.llama).join(',');
+    const data  = await safeFetch(`https://coins.llama.fi/prices/current/${coins}`, 11000);
+    const out   = {};
+    for (const tk of llamaTk) {
+      const entry = data.coins?.[tk.llama];
+      if (entry?.price > 0) out[tk.sym] = entry.price;
+    }
+    const n = Object.keys(out).length;
+    setApi('a-llama', n > 0 ? `OK ${n}tk` : 'PARTIAL', n > 0 ? 'ok' : 'warn');
+    return out;
+  } catch(e) {
+    setApi('a-llama', 'ERR', 'err');
+    return {};
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// CALCULATE OPPORTUNITY
+// ═══════════════════════════════════════════════════
+function calcOpp(tk, cexData, dexPrice, dexSrc) {
+  if (!cexData || !dexPrice || dexPrice <= 0 || !cexData.mid) return null;
+  const { bid, ask, mid } = cexData;
+
+  // Real arbitrage direction based on actual bid/ask
+  let dir, spread, cexExec;
+  if (dexPrice > ask) {
+    dir = 'BUY_CEX'; cexExec = ask;
+    spread = ((dexPrice - ask) / ask) * 100;
+  } else if (dexPrice < bid) {
+    dir = 'SELL_CEX'; cexExec = bid;
+    spread = ((bid - dexPrice) / bid) * 100;
+  } else {
+    // Within spread — no arb
+    dir = 'IN_SPREAD';
+    spread = Math.abs(((dexPrice - mid) / mid) * 100);
+  }
+
+  const cexFees = TRADE * CEX_FEE * 2;
+  const slipFee = TRADE * SLIP;
+  const fees    = cexFees + tk.wFee + tk.gas + slipFee;
+  const gross   = TRADE * (spread / 100);
+  const net     = (dir === 'IN_SPREAD') ? (gross - fees) * -1 : gross - fees;
+
+  return { tk, bid, ask, mid, dexPrice, dexSrc, spread, dir,
+           gross: dir === 'IN_SPREAD' ? 0 : gross,
+           net: dir === 'IN_SPREAD' ? -(fees) : gross - fees,
+           fees, cexFees, wFee:tk.wFee, gas:tk.gas, slip:slipFee,
+           noArb: dir === 'IN_SPREAD' };
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN SCAN
+// ═══════════════════════════════════════════════════
+async function runScan() {
+  scanN++;
+  document.getElementById('h-scans').textContent = scanN;
+  setDot('var(--warn)', 'SCANNING');
+  document.getElementById('scan-btn').textContent = '⟳ SCANNING';
+
+  // Step 1: CoinGecko — bază pentru tot
+  cgCache = await fetchCoinGecko();
+
+  // Step 2: DEX prices în paralel
+  const [jupData, pythData, llamaData] = await Promise.all([
+    fetchJupiter(),
+    fetchPyth(),
+    fetchLlama(),
+  ]);
+
+  // Step 3: Binance din WebSocket cache (fără await — instant)
+  const bnbData = getBinancePrices(cgCache);
+
+  if (!bnbData || Object.keys(bnbData).length === 0) {
+    setDot('var(--loss)', 'NO DATA');
+    addAlert('b', 'Niciun preț CEX disponibil. Verifică conexiunea.');
+    document.getElementById('scan-btn').textContent = '⟳ SCAN NOW';
+    return;
+  }
+
+  // Step 3: Build opportunity list
+  const opps = [];
+  for (const tk of TOKENS) {
+    const cex = bnbData[tk.sym];
+    if (!cex) continue;
+
+    // Best DEX price source, in priority order:
+    let dexPrice = null, dexSrc = 'sim';
+
+    if (tk.jMint && jupData[tk.sym]) {
+      dexPrice = jupData[tk.sym]; dexSrc = 'live'; // Jupiter live quote
+    } else if (tk.chain === 'sui' && pythData[tk.sym]) {
+      dexPrice = pythData[tk.sym]; dexSrc = 'live'; // Pyth oracle
+    } else if (tk.llama && llamaData[tk.sym]) {
+      dexPrice = llamaData[tk.sym]; dexSrc = 'live'; // DeFiLlama on-chain
+    } else if (cgCache[tk.sym]) {
+      dexPrice = cgSpread(tk.sym, cgCache[tk.sym].price); dexSrc = 'cg'; // CG + spread model
+    } else if (cex.mid) {
+      dexPrice = cgSpread(tk.sym, cex.mid); dexSrc = 'sim'; // synthetic
+    }
+
+    const opp = calcOpp(tk, cex, dexPrice, dexSrc);
+    if (opp) opps.push(opp);
+  }
+
+  opps.sort((a, b) => b.net - a.net);
+  pm = {};
+  opps.forEach(o => pm[o.tk.sym] = o);
+
+  renderTable(opps);
+  updateStats(opps);
+  checkAlerts(opps);
+
+  const profitable = opps.filter(o => o.net > 0 && !o.noArb).length;
+  document.getElementById('h-opps').textContent = profitable;
+  document.getElementById('h-best').textContent = opps[0] ? opps[0].spread.toFixed(3)+'%' : '–';
+  document.getElementById('upd').textContent = new Date().toLocaleTimeString('ro-RO');
+  setApi('a-time', new Date().toLocaleTimeString('ro-RO'), 'ok');
+  setDot('var(--profit)', 'LIVE');
+  document.getElementById('scan-btn').textContent = '⟳ SCAN NOW';
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+function renderTable(opps) {
+  const tb  = document.getElementById('tb');
+  const ms  = parseFloat(document.getElementById('msp').value) || 0;
+  const po  = document.getElementById('po').checked;
+  let list  = opps.slice();
+  if (fChain !== 'all') list = list.filter(o => o.tk.chain === fChain);
+  if (ms > 0) list = list.filter(o => o.spread >= ms);
+  if (po)  list = list.filter(o => o.net > 0 && !o.noArb);
+
+  if (!list.length) {
+    tb.innerHTML = `<tr class="empty"><td colspan="10">Nicio oportunitate cu filtrele curente — relaxează MIN% sau schimbă chain.</td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = list.map(o => {
+    const {tk,bid,ask,dexPrice,dexSrc,spread,net,gross,fees,dir,noArb} = o;
+    const sc  = noArb ? 'sp-cold' : spread >= 0.8 ? 'sp-hot' : spread >= 0.35 ? 'sp-warm' : 'sp-cold';
+    const pc  = net > 0 && !noArb ? 'pv-pos' : net > -1 ? 'pv-0' : 'pv-neg';
+    const dc  = dir === 'BUY_CEX' ? 'd-bc' : dir === 'SELL_CEX' ? 'd-sc' : '';
+    const dl  = dir === 'BUY_CEX' ? '↑CEX' : dir === 'SELL_CEX' ? '↓DEX' : '──';
+    const xc  = net > 0 && !noArb ? 'go' : 'no';
+    const sdC = dexSrc === 'live' ? 's-live' : dexSrc === 'cg' ? 's-cg' : 's-sim';
+    const sdL = dexSrc === 'live' ? 'LIVE' : dexSrc === 'cg' ? 'CG±' : 'EST';
+    const baSpread = ((ask-bid)/ask*100).toFixed(3);
+    return `<tr onclick="showModal('${tk.sym}')">
+      <td><div class="tc">
+        <div class="ti" style="background:${tk.bg};color:${tk.color};border:1px solid ${tk.color}44">${tk.sym.slice(0,3)}</div>
+        <div>
+          <div class="tn">${tk.sym}</div>
+          <div class="tch"><span class="cb cb-${tk.chain}">${tk.chain.toUpperCase()}</span> ${tk.name.slice(0,10)}</div>
+        </div>
+      </div></td>
+      <td class="r mono">
+        <span style="color:var(--profit);font-size:10px">B $${fp(bid)}</span><br>
+        <span style="color:var(--loss);font-size:10px">A $${fp(ask)}</span>
+        <span style="font-size:8px;color:var(--dim)"> [${baSpread}%]</span>
+      </td>
+      <td class="r mono">$${fp(dexPrice)}<br><span style="font-size:8px;color:var(--dim)">${tk.dex}</span></td>
+      <td class="c"><span class="sdot ${sdC}"></span><span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim)">${sdL}</span></td>
+      <td class="r"><span class="sp ${sc}">${spread.toFixed(3)}%</span></td>
+      <td class="r mono" style="color:var(--accent);font-size:10px">$${gross.toFixed(2)}</td>
+      <td class="r mono" style="color:var(--dim);font-size:10px">$${fees.toFixed(2)}</td>
+      <td class="r"><span class="pv ${pc}">${net>=0?'+':''}$${net.toFixed(2)}</span></td>
+      <td class="c"><span class="db ${dc}">${dl}</span></td>
+      <td class="c"><button class="xbtn ${xc}" onclick="event.stopPropagation();showModal('${tk.sym}')">${net>0&&!noArb?'▶GO':'⊘'}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStats(opps) {
+  document.getElementById('s-p').textContent = opps.filter(o => o.net > 0 && !o.noArb).length;
+  document.getElementById('s-m').textContent = opps.filter(o => o.net > -1 && o.net <= 0).length;
+  document.getElementById('s-n').textContent = opps.filter(o => o.net <= -1).length;
+  document.getElementById('s-t').textContent = opps.length;
+}
+
+function checkAlerts(opps) {
+  for (const o of opps.filter(o => o.net > 0.5 && !o.noArb)) {
+    const icon = o.dexSrc === 'live' ? '🟢' : o.dexSrc === 'cg' ? '🔵' : '🟡';
+    addAlert('g', `${icon} ${o.tk.sym}[${o.tk.chain.toUpperCase()}] NET +$${o.net.toFixed(2)} | ${o.spread.toFixed(3)}% | ${o.dir==='BUY_CEX'?'CEX→DEX':'DEX→CEX'}`);
+    if (sndOn && o.net > 1) playBeep(o.net > 3 ? 1100 : 880);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════
+function showModal(sym) {
+  const o = pm[sym]; if (!o) return;
+  const {tk,bid,ask,dexPrice,dexSrc,spread,net,gross,fees,cexFees,wFee,gas,slip,dir,noArb} = o;
+  const units = (TRADE/(dir==='BUY_CEX'?ask:dexPrice)).toFixed(6);
+  const srcLabel = {live:'🟢 API real', cg:'🔵 CoinGecko±spread', sim:'🟡 Estimat'};
+  const step1 = dir==='BUY_CEX'
+    ? `Cumpără ${units} ${tk.sym} pe Binance la ASK $${fp(ask)}`
+    : dir==='SELL_CEX'
+    ? `Cumpără ${units} ${tk.sym} pe ${tk.dex} la $${fp(dexPrice)}`
+    : `Nu există arbitraj — prețul DEX ($${fp(dexPrice)}) e ÎNTRE bid/ask Binance`;
+  const step2 = dir==='BUY_CEX'
+    ? `Retrage pe ${tk.chain.toUpperCase()} (fee $${wFee}, ${tk.chain==='sol'?'~30s':'5-20min'})`
+    : `Depozitează ${tk.sym} pe Binance — selectează rețeaua ${tk.chain.toUpperCase()}!`;
+  const step3 = dir==='BUY_CEX'
+    ? `Vinde pe ${tk.dex} — verifică prețul live EXACT înainte de confirmare`
+    : `Vinde la BID $${fp(bid)} pe Binance`;
+
+  document.getElementById('mg').innerHTML = `
+    <div class="ob">
+      <div class="obt">CEX BID / ASK</div>
+      <div class="obv" style="font-size:13px">
+        <span style="color:var(--profit)">B $${fp(bid)}</span> / <span style="color:var(--loss)">A $${fp(ask)}</span>
+      </div>
+      <div class="obs">Spread intern CEX: ${((ask-bid)/ask*100).toFixed(4)}%</div>
+    </div>
+    <div class="ob">
+      <div class="obt">DEX PRICE</div>
+      <div class="obv" style="color:var(--accent)">$${fp(dexPrice)}</div>
+      <div class="obs">${srcLabel[dexSrc]} · ${tk.dex}</div>
+    </div>
+    <div class="ob">
+      <div class="obt">PROFIT NET ($${TRADE})</div>
+      <div class="obv" style="color:${net>0&&!noArb?'var(--profit)':'var(--loss)'}">${net>=0?'+':''}$${net.toFixed(3)}</div>
+      <div class="obs">Gross $${gross.toFixed(3)} − Fees $${fees.toFixed(3)}</div>
+    </div>
+    <div class="ob">
+      <div class="obt">FEE BREAKDOWN</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);line-height:1.9">
+        Trade 2×0.075%: $${cexFees.toFixed(3)}<br>
+        Withdraw: $${wFee.toFixed(2)}<br>
+        Gas DEX: $${gas.toFixed(4)}<br>
+        Slippage 0.2%: $${slip.toFixed(3)}
+      </div>
+    </div>`;
+
+  document.getElementById('ms').innerHTML = noArb ? '' : `<ul class="steps">
+    <li>${step1}</li><li>${step2}</li><li>${step3}</li>
+    <li>Verifică că fondurile au ajuns înainte de a deschide altă poziție</li>
+  </ul>`;
+
+  const warnTxt = noArb
+    ? `<div class="wbox">⚠ Prețul DEX ($${fp(dexPrice)}) este ÎNTRE BID ($${fp(bid)}) și ASK ($${fp(ask)}) Binance — nu există spread exploatabil.</div>`
+    : dexSrc !== 'live'
+    ? `<div class="wbox">⚠ Prețul DEX este ${srcLabel[dexSrc]} — verifică prețul real pe ${tk.dex} înainte de execuție!</div>`
+    : '';
+  document.getElementById('mw').innerHTML = warnTxt;
+
+  document.getElementById('ma').innerHTML = `
+    <a href="${tk.url}" target="_blank"><button class="btn ok">🔗 DEX</button></a>
+    <a href="https://www.binance.com/en/trade/${tk.sym}_USDC" target="_blank"><button class="btn">📈 BINANCE</button></a>
+    <button class="btn err" onclick="closeModal()">✕ CLOSE</button>`;
+
+  document.getElementById('ov').classList.add('open');
+}
+function closeModal() { document.getElementById('ov').classList.remove('open'); }
+document.getElementById('ov').addEventListener('click', e => { if (e.target===e.currentTarget) closeModal(); });
+
+// ═══════════════════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════════════════
+function addAlert(t, m) {
+  const af = document.getElementById('af');
+  const el = document.createElement('div');
+  el.className = `ai ${t}`;
+  el.innerHTML = `<div class="ai-t">${new Date().toLocaleTimeString('ro-RO')}</div><div class="ai-m">${m}</div>`;
+  af.insertBefore(el, af.firstChild);
+  while (af.children.length > 30) af.removeChild(af.lastChild);
+}
+function clrAl() { document.getElementById('af').innerHTML = ''; }
+
+// ═══════════════════════════════════════════════════
+// SOUND
+// ═══════════════════════════════════════════════════
+function playBeep(f=880) {
+  try {
+    const c = new(window.AudioContext||window.webkitAudioContext)();
+    const o = c.createOscillator(), g = c.createGain();
+    o.connect(g); g.connect(c.destination);
+    o.frequency.value=f; o.type='sine';
+    g.gain.setValueAtTime(.18,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.5);
+    o.start(); o.stop(c.currentTime+.5);
+  } catch(e){}
+}
+document.getElementById('snd').addEventListener('click',function(){
+  sndOn=!sndOn; this.textContent=sndOn?'🔔':'🔕';
+});
+
+// ═══════════════════════════════════════════════════
+// CHAIN FILTER
+// ═══════════════════════════════════════════════════
+document.querySelectorAll('.cp').forEach(p => {
+  p.addEventListener('click', function() {
+    document.querySelectorAll('.cp').forEach(x => x.classList.remove('on'));
+    this.classList.add('on'); fChain = this.dataset.chain;
+    renderTable(Object.values(pm).sort((a,b) => b.net-a.net));
+  });
+});
+document.getElementById('po').addEventListener('change', () => {
+  renderTable(Object.values(pm).sort((a,b) => b.net-a.net));
+});
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function fp(p) {
+  if (!p || isNaN(p)) return '–';
+  if (p >= 10000) return p.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+  if (p >= 1000)  return p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (p >= 1)     return p.toFixed(4);
+  if (p >= 0.01)  return p.toFixed(5);
+  return p.toFixed(8);
+}
+function setDot(c,t) {
+  const d=document.getElementById('dot'),s=document.getElementById('st');
+  d.style.background=c; d.style.boxShadow=`0 0 8px ${c}`; s.textContent=t; s.style.color=c;
+}
+function setApi(id,txt,cls) {
+  const e=document.getElementById(id);
+  e.textContent=txt; e.className='ab-v '+cls;
+}
+
+// ═══════════════════════════════════════════════════
+// COUNTDOWN + AUTO-SCAN
+// ═══════════════════════════════════════════════════
+function startCd() {
+  clearInterval(cdTmr); cdVal=30;
+  cdTmr=setInterval(()=>{ cdVal=Math.max(0,cdVal-1); document.getElementById('cd').textContent=cdVal; },1000);
+}
+function doScan() {
+  TRADE = parseFloat(document.getElementById('tsz').value)||500;
+  document.getElementById('tsd').textContent = TRADE;
+  clearInterval(cdTmr); clearTimeout(scTmr);
+  runScan().then(()=>{ startCd(); scTmr=setInterval(()=>runScan(),30000); });
+}
+
+// BOOT
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('tkct').textContent = TOKENS.length;
+  // Pornește WebSocket imediat — se populează în background
+  connectWs();
+  addAlert('i', `v4.1: WS Binance bookTicker pornit pentru ${TOKENS.length} tokeni`);
+  addAlert('i', 'Primele 3s → CoinGecko preț CEX. Apoi WS preia automat.');
+  // Primul scan după 3s să dăm timp WS-ului să primească primele prețuri
+  setTimeout(() => doScan(), 3000);
+});
+</script>
+</body>
+</html>
