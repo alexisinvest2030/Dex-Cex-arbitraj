@@ -1,20 +1,19 @@
-# CEX·DEX ARB SCANNER v4.3
+# CEX·DEX ARB SCANNER v4.4
 
 **Live:** https://alexisinvest2030.github.io/Dex-Cex-arbitraj/
 
-## Fix v4.3 — rezolvat CORS GitHub Pages
-| API | Status | Motiv |
-|-----|--------|-------|
-| Binance WebSocket | ✅ OK | WS nu are CORS |
-| CryptoCompare | ✅ OK | CORS `*`, înlocuiește CoinGecko |
-| DeFiLlama | ✅ OK | CORS `*` |
-| Jupiter price.jup.ag | ✅ OK | CORS `*` |
-| Pyth Hermes | ✅ OK | CORS `*` |
-| ~~CoinGecko free~~ | ❌ BLOCAT | CORS blocat din 2024 |
+## Fix v4.4
+| Bug | Cauza | Fix |
+|-----|-------|-----|
+| `price.jup.ag ERR_NAME_NOT_RESOLVED` | DNS instabil | Eliminat complet — DeFiLlama Solana mint primar |
+| `POL = $0.20` aberant | CC `MATIC` simbol deprecated | CC_SYM fix + validare ratio vs Binance WS |
+| Favicon 404 | Lipsea | Adăugat inline SVG favicon |
 
-## Arhitectura
-- **CEX prices**: Binance WebSocket bookTicker (bid/ask real)
-- **SOL**: price.jup.ag → DeFiLlama Solana mint → CryptoCompare
-- **EVM**: DeFiLlama on-chain (batch 8) → CryptoCompare  
-- **SUI**: Pyth Hermes oracle → CryptoCompare
-- **Fallback**: CryptoCompare (250k calls/luna gratuit, CORS open)
+## Surse prețuri (toate cu CORS open)
+| Sursa | Acoperire |
+|-------|-----------|
+| Binance WebSocket bookTicker | CEX bid/ask real-time |
+| DeFiLlama `solana:MINT` | Solana DEX prices |
+| DeFiLlama `chain:address` batch 8 | EVM DEX prices |
+| Pyth Hermes | SUI oracle |
+| CryptoCompare | Fallback universal + validare |
