@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEX·DEX ARB SCANNER v4.3</title>
+<title>CEX·DEX ARB SCANNER v4.4</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
 :root{
@@ -225,8 +226,8 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
   <div class="logo">
     <div class="logo-hex">ARB</div>
     <div>
-      <div class="logo-name">CEX · DEX SCANNER v4.3</div>
-      <div class="logo-sub">WS BINANCE · JUP/LLAMA · PYTH · DEFILLAMA · CRYPTOCOMPARE</div>
+      <div class="logo-name">CEX · DEX SCANNER v4.4</div>
+      <div class="logo-sub">WS BINANCE · DEFILLAMA SOL · PYTH SUI · DEFILLAMA EVM · CRYPTOCOMPARE</div>
     </div>
   </div>
   <div class="hbar">
@@ -524,7 +525,7 @@ const TOKENS = [
   {sym:'POL',    name:'Polygon',       chain:'pol',color:'#8247e5',bg:'rgba(130,71,229,.15)',
    pair:'POLUSDC',   dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
    wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'matic-network',
-   llama:'coingecko:matic-network'},
+   llama:'polygon:0x0000000000000000000000000000000000001010'},
   {sym:'QUICK',  name:'QuickSwap',     chain:'pol',color:'#5389c5',bg:'rgba(83,137,197,.15)',
    pair:'QUICKUSDC', dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
    wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'quickswap',
@@ -616,7 +617,8 @@ let ccCache = {}; // CryptoCompare cache — shared across functions
 
 // CryptoCompare symbol mapping (unde simbolul difera de cel Binance)
 const CC_SYM = {
-  POL: 'MATIC',  // CoinGecko -> CryptoCompare name
+  // POL renamed from MATIC on Binance/CryptoCompare in Sept 2024
+  // CryptoCompare now has 'POL' symbol directly
 };
 function ccSym(sym) { return CC_SYM[sym] || sym; }
 
@@ -692,11 +694,25 @@ async function fetchCryptoCompare() {
       `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${syms}&tsyms=USD`,
       11000
     );
-    // Response: { "BTC": { "USD": 65000 }, "ETH": { "USD": 3400 }, ... }
     const out = {};
     for (const tk of TOKENS) {
       const sym = ccSym(tk.sym);
-      if (data[sym]?.USD > 0) out[tk.sym] = data[sym].USD;
+      const raw = data[sym]?.USD;
+      if (!raw || raw <= 0) continue;
+
+      // Sanity check: daca avem pret Binance WS, verifica ca CC nu e aberant
+      // (>5x diferenta = simbol gresit/deprecated pe CryptoCompare)
+      const ws = wsPrices[tk.sym]?.mid;
+      if (ws && ws > 0) {
+        const ratio = raw / ws;
+        if (ratio > 5 || ratio < 0.2) {
+          // Pret aberant — ignora CC si foloseste WS
+          addAlert('w', `${tk.sym}: CC $${raw.toFixed(4)} vs WS $${ws.toFixed(4)} — ignorat CC`);
+          out[tk.sym] = ws;
+          continue;
+        }
+      }
+      out[tk.sym] = raw;
     }
     const n = Object.keys(out).length;
     setApi('a-cg', `CC ${n}tk`, n > 0 ? 'ok' : 'warn');
@@ -711,51 +727,38 @@ async function fetchCryptoCompare() {
 
 // ══════════════════════════════════════════════════════════
 // 3. SOLANA DEX PRICES
-//    A) price.jup.ag/v4 — CORS open dar DNS intermitent
-//    B) DeFiLlama cu Solana mint addresses — CORS open, stabil
-//    C) CryptoCompare cache (deja fetched)
+//    price.jup.ag eliminat (DNS ERR_NAME_NOT_RESOLVED stabil).
+//    A) DeFiLlama cu Solana mint addresses — CORS open, stabil
+//    B) CryptoCompare cache (fallback)
 // ══════════════════════════════════════════════════════════
 const USDC_SOL = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 async function fetchJupiter() {
   const solTk = TOKENS.filter(t => t.jMint);
   if (!solTk.length) return {};
-  const mintIds = solTk.map(t => t.jMint).join(',');
 
-  // A) Jupiter Price v4 — single request, CORS open
-  try {
-    const data = await safeFetch(`https://price.jup.ag/v4/price?ids=${mintIds}`, 9000);
-    if (data?.data) {
-      const out = {};
-      for (const tk of solTk) {
-        const e = data.data[tk.jMint];
-        if (e?.price > 0) out[tk.sym] = e.price;
+  // Batch Solana mints in groups of 8 to avoid URL length issues
+  const BATCH = 8;
+  const out = {};
+  for (let i = 0; i < solTk.length; i += BATCH) {
+    const batch = solTk.slice(i, i + BATCH);
+    const llamaIds = batch.map(t => `solana:${t.jMint}`).join(',');
+    try {
+      const data = await safeFetch(`https://coins.llama.fi/prices/current/${llamaIds}`, 10000);
+      if (data?.coins) {
+        for (const tk of batch) {
+          const e = data.coins[`solana:${tk.jMint}`];
+          if (e?.price > 0) out[tk.sym] = e.price;
+        }
       }
-      if (Object.keys(out).length >= solTk.length * 0.5) {
-        setApi('a-jup', `Jup ${Object.keys(out).length}tk`, 'ok');
-        return out;
-      }
-    }
-  } catch(_) {}
-
-  // B) DeFiLlama Solana mint addresses — CORS open, stabil
-  try {
-    const llamaIds = solTk.map(t => `solana:${t.jMint}`).join(',');
-    const data = await safeFetch(`https://coins.llama.fi/prices/current/${llamaIds}`, 10000);
-    if (data?.coins) {
-      const out = {};
-      for (const tk of solTk) {
-        const e = data.coins[`solana:${tk.jMint}`];
-        if (e?.price > 0) out[tk.sym] = e.price;
-      }
-      if (Object.keys(out).length > 0) {
-        setApi('a-jup', `Llama ${Object.keys(out).length}tk`, 'warn');
-        return out;
-      }
-    }
-  } catch(_) {}
-
-  // C) CryptoCompare cache
+    } catch(_) {}
+  }
+  const n = Object.keys(out).length;
+  if (n > 0) {
+    setApi('a-jup', `Llama ${n}tk`, 'ok');
+    return out;
+  }
+  // Fallback: CryptoCompare cache
   setApi('a-jup', 'CC↓', 'warn');
   return {};
 }
