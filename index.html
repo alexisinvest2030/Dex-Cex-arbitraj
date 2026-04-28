@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEX·DEX ARB SCANNER v4.6</title>
+<title>CEX·DEX ARB SCANNER v4.7</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
@@ -226,7 +226,7 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
   <div class="logo">
     <div class="logo-hex">ARB</div>
     <div>
-      <div class="logo-name">CEX · DEX SCANNER v4.6</div>
+      <div class="logo-name">CEX · DEX SCANNER v4.7</div>
       <div class="logo-sub">WS BINANCE · DEFILLAMA SOL · PYTH SUI · DEFILLAMA EVM · CRYPTOCOMPARE</div>
     </div>
   </div>
@@ -423,6 +423,7 @@ const TIER = {
   BAKE:'tier5',BRETT:'tier5',VIRTUAL:'tier5',HIGHER:'tier5',POPCAT:'tier5',NS:'tier5',
   PENGU:'tier4',PUMP:'tier4',ORCA:'tier3',PNUT:'tier4',FARTCOIN:'tier4',
   TRUMP:'tier3',GOAT:'tier5',MOODENG:'tier5',
+  MORPHO:'tier3',ZRO:'tier3',
 };
 
 function cgSpread(sym, price) {
@@ -510,8 +511,24 @@ const TOKENS = [
    pair:'RDNTUSDT',  dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
    wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'radiant-capital',
    llama:'arbitrum:0x3082CC23568eA640225c2467653dB90e9250AaA0'},
+  {sym:'ZRO',    name:'LayerZero',     chain:'arb',color:'#7b61ff',bg:'rgba(123,97,255,.15)',
+   pair:'ZROUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'layerzero',
+   llama:'arbitrum:0x6985884C4392D348587B19cb9eAAf157F13271cd'},
 
   // ── BASE ────────────────────────────────────────────
+  {sym:'ETH',    name:'Ethereum',      chain:'base',color:'#627eea',bg:'rgba(98,126,234,.15)',
+   pair:'ETHUSDC',   dex:'Uniswap/Base',url:'https://app.uniswap.org/#/swap?chain=base',
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'ethereum',
+   llama:'base:0x4200000000000000000000000000000000000006'},
+  {sym:'MORPHO', name:'Morpho',        chain:'base',color:'#5270ff',bg:'rgba(82,112,255,.15)',
+   pair:'MORPHOUSDC', dex:'Uniswap/Base',url:'https://app.uniswap.org/#/swap?chain=base',
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'morpho',
+   llama:'base:0xbaa5cc21fd487b8fcc2f632f3f4e8d37262a0842'},
+  {sym:'ZRO',    name:'LayerZero',     chain:'base',color:'#7b61ff',bg:'rgba(123,97,255,.15)',
+   pair:'ZROUSDC',   dex:'Uniswap/Base',url:'https://app.uniswap.org/#/swap?chain=base',
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'layerzero',
+   llama:'base:0x6985884C4392D348587B19cb9eAAf157F13271cd'},
   {sym:'AERO',   name:'Aerodrome',     chain:'base',color:'#ff4b4b',bg:'rgba(255,75,75,.15)',
    pair:'AEROUSDC',  dex:'Aerodrome',  url:'https://aerodrome.finance/swap',
    wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'aerodrome-finance',
@@ -530,6 +547,14 @@ const TOKENS = [
    llama:'base:0x0578d8A44db98B23BF096A382e016e29a5Ce0ffe'},
 
   // ── BSC ─────────────────────────────────────────────
+  {sym:'ETH',    name:'Ethereum',      chain:'bsc',color:'#627eea',bg:'rgba(98,126,234,.15)',
+   pair:'ETHUSDC',   dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
+   wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'ethereum',
+   llama:'bsc:0x2170Ed0880ac9A755fd29B2688956BD959F933F8'},
+  {sym:'ZRO',    name:'LayerZero',     chain:'bsc',color:'#7b61ff',bg:'rgba(123,97,255,.15)',
+   pair:'ZROUSDC',   dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
+   wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'layerzero',
+   llama:'bsc:0x6985884C4392D348587B19cb9eAAf157F13271cd'},
   {sym:'BNB',    name:'BNB',           chain:'bsc',color:'#f0b90b',bg:'rgba(240,185,11,.15)',
    pair:'BNBUSDC',   dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
    wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'binancecoin',
@@ -548,6 +573,14 @@ const TOKENS = [
    llama:'bsc:0xE02dF9e3e622DeBdD69fb838bB799E3F168902c5'},
 
   // ── POLYGON ─────────────────────────────────────────
+  {sym:'ETH',    name:'Ethereum',      chain:'pol',color:'#627eea',bg:'rgba(98,126,234,.15)',
+   pair:'ETHUSDC',   dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'ethereum',
+   llama:'polygon:0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619'},
+  {sym:'ZRO',    name:'LayerZero',     chain:'pol',color:'#7b61ff',bg:'rgba(123,97,255,.15)',
+   pair:'ZROUSDC',   dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'layerzero',
+   llama:'polygon:0x6985884C4392D348587B19cb9eAAf157F13271cd'},
   {sym:'POL',    name:'Polygon',       chain:'pol',color:'#8247e5',bg:'rgba(130,71,229,.15)',
    pair:'POLUSDC',   dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
    wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'matic-network',
@@ -566,6 +599,14 @@ const TOKENS = [
    llama:'polygon:0xA1c57f48F0Deb89f569dFbE6E2B7f46D33606fD4'},
 
   // ── AVALANCHE ───────────────────────────────────────
+  {sym:'ETH',    name:'Ethereum',      chain:'avax',color:'#627eea',bg:'rgba(98,126,234,.15)',
+   pair:'ETHUSDC',   dex:'Trader Joe', url:'https://traderjoexyz.com/avalanche/trade',
+   wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'ethereum',
+   llama:'avax:0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB'},
+  {sym:'ZRO',    name:'LayerZero',     chain:'avax',color:'#7b61ff',bg:'rgba(123,97,255,.15)',
+   pair:'ZROUSDC',   dex:'Trader Joe', url:'https://traderjoexyz.com/avalanche/trade',
+   wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'layerzero',
+   llama:'avax:0x6985884C4392D348587B19cb9eAAf157F13271cd'},
   {sym:'AVAX',   name:'Avalanche',     chain:'avax',color:'#e84142',bg:'rgba(232,65,66,.15)',
    pair:'AVAXUSDC',  dex:'Trader Joe', url:'https://traderjoexyz.com/avalanche/trade',
    wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'avalanche-2',
@@ -584,6 +625,14 @@ const TOKENS = [
    llama:'avax:0x8729438EB15e2C8B576fCc6AeCdA6A148776C0F5'},
 
   // ── OPTIMISM ────────────────────────────────────────
+  {sym:'ETH',    name:'Ethereum',      chain:'op',color:'#627eea',bg:'rgba(98,126,234,.15)',
+   pair:'ETHUSDC',   dex:'Velodrome',  url:'https://velodrome.finance/swap',
+   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'ethereum',
+   llama:'optimism:0x4200000000000000000000000000000000000006'},
+  {sym:'ZRO',    name:'LayerZero',     chain:'op',color:'#7b61ff',bg:'rgba(123,97,255,.15)',
+   pair:'ZROUSDC',   dex:'Uniswap/OP', url:'https://app.uniswap.org/#/swap?chain=optimism',
+   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'layerzero',
+   llama:'optimism:0x6985884C4392D348587B19cb9eAAf157F13271cd'},
   {sym:'OP',     name:'Optimism',      chain:'op',color:'#ff0420',bg:'rgba(255,4,32,.15)',
    pair:'OPUSDC',    dex:'Velodrome',  url:'https://velodrome.finance/swap',
    wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'optimism',
@@ -1198,7 +1247,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tkct').textContent = TOKENS.length;
   // Pornește WebSocket imediat — se populează în background
   connectWs();
-  addAlert('i', `v4.6: +8 tokeni noi SOL: PENGU/PUMP/ORCA/PNUT/FARTCOIN/TRUMP/GOAT/MOODENG (toate USDC)`);
+  addAlert('i', `v4.7: +ETH pe toate chainurile, +MORPHO/Base, +ZRO pe 5 chainuri (ARB/BASE/BSC/POL/OP/AVAX)`);
   addAlert('i', `v4.5: Slippage dinamic per token (tier1 0.04% → tier5 1.5%) + sqrt scaling`);
   addAlert('i', 'CEX: WS Binance | SOL: Jupiter/DeFiLlama | EVM: DeFiLlama | SUI: Pyth');
   addAlert('i', 'Astept 3s pentru WS Binance...');
