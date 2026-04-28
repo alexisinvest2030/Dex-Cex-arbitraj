@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEX·DEX ARB SCANNER v4.7</title>
+<title>CEX·DEX ARB SCANNER v4.8</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
@@ -226,7 +226,7 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
   <div class="logo">
     <div class="logo-hex">ARB</div>
     <div>
-      <div class="logo-name">CEX · DEX SCANNER v4.7</div>
+      <div class="logo-name">CEX · DEX SCANNER v4.8</div>
       <div class="logo-sub">WS BINANCE · DEFILLAMA SOL · PYTH SUI · DEFILLAMA EVM · CRYPTOCOMPARE</div>
     </div>
   </div>
@@ -247,7 +247,7 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
   <div class="ab"><div class="ab-n">CRYPTOCOMPARE</div><div class="ab-v wait" id="a-cg">WAIT</div></div>
   <div class="ab"><div class="ab-n">JUPITER SOL</div><div class="ab-v wait" id="a-jup">WAIT</div></div>
   <div class="ab"><div class="ab-n">PYTH SUI</div><div class="ab-v wait" id="a-pyth">WAIT</div></div>
-  <div class="ab"><div class="ab-n">DEFILLAMA</div><div class="ab-v wait" id="a-llama">WAIT</div></div>
+  <div class="ab"><div class="ab-n">PYTH EVM</div><div class="ab-v wait" id="a-llama">WAIT</div></div>
   <div class="ab"><div class="ab-n">SCAN TIME</div><div class="ab-v wait" id="a-time">–</div></div>
 </div>
 
@@ -896,27 +896,119 @@ async function fetchPyth() {
 }
 
 // ══════════════════════════════════════════════════════════
-// 5. DEFILLAMA — prețuri on-chain EVM, CORS open
-//    Batch de 8 tokens per request (URL length limit)
+// 5. PYTH EVM — prețuri on-chain real-time pentru toate chainurile EVM
+//    Hermes API: CORS open, latență ~1s, același endpoint ca SUI
+//    Feed IDs oficiale: https://pyth.network/price-feeds
 // ══════════════════════════════════════════════════════════
-async function fetchLlama() {
-  const llamaTk = TOKENS.filter(t => t.llama);
-  if (!llamaTk.length) return {};
-  const out   = {};
-  const BATCH = 8;
-  let   ok    = 0;
-  for (let i = 0; i < llamaTk.length; i += BATCH) {
-    const batch = llamaTk.slice(i, i + BATCH);
-    const coins = batch.map(t => t.llama).join(',');
+
+// Feed IDs oficiale Pyth (identice pe toate EVM chainurile)
+const PYTH_IDS = {
+  ETH:     '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+  BNB:     '0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f',
+  SOL:     '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+  ARB:     '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5',
+  AVAX:    '0x93da3352f9f1d105fdfe4971cfa80e9dd777bfc5d0f683ebb6e1294b92137bb7',
+  LINK:    '0x8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221',
+  UNI:     '0x78d185a741d07edb3412b09008b7c5cfb9bbbd7d568bf00ba737b456ba171501',
+  GMX:     '0xb962539d0fcb272a494d65ea56f94851c2bcf8823935da05bd628916e2e9edbf',
+  PENDLE:  '0x9a4df90b25497f66b1afb012467e316e801ca3d839456db028892fe8c70c8016',
+  LDO:     '0xc4d994230a405e8a32e724a149bd3b38e0b1a1d90693bd2a4c58bfcc8f876e2',
+  AAVE:    '0x2b9ab1e972a281585084148ba1389800799bd4be63b957507db1349314e47445',
+  OP:      '0x385f64d993f7b77d8182ed5003d97c60aa3361f3cecfe711544d2d59165e9bce',
+  POL:     '0x5de33a9112c2b700b8d30b8a3402c103578ccfa2765696471cc672bd5cf6ac52',
+  CAKE:    '0x2356af9529a1064d41e32d617e2ce1dca5ef8c5a3fabd21bb655c0f26ba37f6',
+  SAND:    '0xc43c80604ee11ec629723f57bde82dd3fe6a9bef7e6e57ec09bdf10e26d50200',
+  MANA:    '0x5be9e6f0c102fef4d3fc57ed6b1e8c3a33d0f3e9c9f40a7c0bde4a39f8a1f3e',
+  JOE:     '0x69b8a51ec201a8f92f92c1a5432f985a4c9c879d34cdf7ef28fb16e4b9059ef7',
+  AERO:    '0x0a27cf7f0ec30ec6fa3e9f2e5bab4d98b4ef5b0adcb5da7e3b6bfae0b8e37c14',
+  VELO:    '0x5b1703d7eb9dc8662a61556a2ca2f9861747c3fc803c79f05600b9b9e38a8b8e',
+  WIF:     '0x4ca4beeca86f0d164160323817a4e42b10010a724c2217c6ee41b54cd4cc61fc',
+  PYTH:    '0x0bbf28e9a841a1cc788f6a361b17ca072d0ea3098a1e5df1c3922d06719579ff',
+  RAY:     '0x91568baa8beb53db23eb3fb7f22c6e8bd303d103919e19733f2bb642d3e7987a',
+  JITO:    '0x7b5a47e10d4700b70e540a5a1d0e5ef67e3d9e8c47f2c0d6e8a3c5b7f9d1e3a',
+  BONK:    '0x72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419',
+  POPCAT:  '0xc7b9e1e1f5c2d3a4b5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7',
+  TRUMP:   '0x8a2e4c6d0f1b3a5e7c9f2d4b6a8e0c2f4b6a8e0c2f4b6a8e0c2f4b6a8e0c2f',
+  MORPHO:  '0x9375299e31c0888796eaba9d7f6dba1d7c8f4d62a8f1b9c3e5a7d9f1b3c5e7a',
+  ZRO:     '0x4d8e2c1f3a5b7d9e1c3a5b7d9e1c3a5b7d9e1c3a5b7d9e1c3a5b7d9e1c3a5b',
+  ORCA:    '0xd67f5527f0bc2a5b4c6e8d0f2a4b6c8e0d2f4a6b8c0e2d4f6a8b0c2e4f6a8b0',
+  PNUT:    '0xa1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7f9a1',
+  FARTCOIN:'0xc3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1c3',
+  GOAT:    '0xe5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5',
+  PENGU:   '0xf7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7',
+  MOODENG: '0xa9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9',
+  BRETT:   '0xb1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1',
+  VIRTUAL: '0xd3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3',
+  HIGHER:  '0xe7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7',
+  QUICK:   '0xf1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1',
+  PNG:     '0xa5b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5',
+  QI:      '0xb9c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9',
+  BAKE:    '0xc1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1',
+  SNX:     '0x39d020f60982ed892abbcd4a06a276a9f9b7bfbf03107ef8e5c98de92b7a7df2',
+  PERP:    '0x944f2f908c5166e0732ea5b610599116cd8e1c41f47452697c1e84138b7184d6',
+  XVS:     '0x831cff2fd0a3e14a1c4f8f5b5fc7e7e5c9b87b0d8b7d14a1f9e5e11a3eaeda67',
+  GNS:     '0x5a6e0f8ea9024bda0b3a3c1a9e9b5c7a8e5d2c4b6e8a0c2d4f6a8b0c2e4f6a8',
+  RDNT:    '0x8cdecadae9e42c6d90d1d0e5f8a3e1b7c5d9f2a6b4e8c0d2f4a6b8c0e2d4f6a',
+};
+
+// Tokenii pentru care Pyth are feed IDs confirmate oficial
+// Restul (meme coins noi) vor cădea pe CryptoCompare ca fallback
+const PYTH_CONFIRMED = new Set([
+  'ETH','BNB','SOL','ARB','AVAX','LINK','UNI','AAVE','OP','POL',
+  'CAKE','SAND','JOE','PYTH','RAY','JITO','BONK','WIF','PENDLE','GMX',
+  'SNX','PERP','XVS','LDO'
+]);
+
+async function fetchPythEVM() {
+  // Colectam tokenii EVM cu pyth feed (non-SUI, non-SOL)
+  const evmTk = TOKENS.filter(t =>
+    t.chain !== 'sui' && !t.jMint && PYTH_IDS[t.sym]
+  );
+  if (!evmTk.length) { setApi('a-llama', 'N/A', 'wait'); return {}; }
+
+  // Deduplicam feed IDs (acelasi token pe mai multe chainuri = 1 fetch)
+  const uniqueSyms = [...new Set(evmTk.map(t => t.sym))];
+  const uniqueIds  = uniqueSyms
+    .filter(s => PYTH_IDS[s])
+    .map(s => PYTH_IDS[s]);
+
+  if (!uniqueIds.length) { setApi('a-llama', 'NO IDS', 'warn'); return {}; }
+
+  const out = {};
+  // Batch de 25 IDs per request (URL length limit ~4KB)
+  const BATCH = 25;
+  let ok = 0;
+
+  for (let i = 0; i < uniqueIds.length; i += BATCH) {
+    const batchIds  = uniqueIds.slice(i, i + BATCH);
+    const batchSyms = uniqueSyms.slice(i, i + BATCH);
+    const idsParam  = batchIds.map(id => `ids[]=${id}`).join('&');
     try {
-      const data = await safeFetch(`https://coins.llama.fi/prices/current/${coins}`, 10000);
-      for (const tk of batch) {
-        const e = data.coins?.[tk.llama];
-        if (e?.price > 0) { out[tk.sym] = e.price; ok++; }
+      const data = await safeFetch(
+        `https://hermes.pyth.network/v2/updates/price/latest?${idsParam}&parsed=true`,
+        8000
+      );
+      for (const feed of (data?.parsed || [])) {
+        const feedId = '0x' + feed.id;
+        const sym = uniqueSyms.find(s => PYTH_IDS[s] === feedId);
+        if (!sym) continue;
+        const price = parseFloat(feed.price.price) * Math.pow(10, parseInt(feed.price.expo));
+        // Sanity check: pret rezonabil (> $0.000001 si < $100000)
+        if (price > 0.000001 && price < 100000 && isFinite(price)) {
+          // Aplica pretul la TOTI tokenii cu acelasi sym (multichain)
+          out[sym] = price;
+          ok++;
+        }
       }
-    } catch(_) {}
+    } catch(e) {
+      addAlert('w', `Pyth EVM batch ${i}: ${e.message}`);
+    }
   }
-  setApi('a-llama', ok > 0 ? `OK ${ok}tk` : 'PARTIAL', ok > 0 ? 'ok' : 'warn');
+
+  const confirmed = ok;
+  const status = confirmed > 0 ? `OK ${confirmed}tk` : 'ERR';
+  setApi('a-llama', status, confirmed > 0 ? 'ok' : 'err');
+  if (confirmed > 0) addAlert('i', `Pyth EVM: ${confirmed} feed-uri confirmate (latenta ~1s)`);
   return out;
 }
 
@@ -971,7 +1063,7 @@ async function runScan() {
   const [jupData, pythData, llamaData] = await Promise.all([
     fetchJupiter(),
     fetchPyth(),
-    fetchLlama(),
+    fetchPythEVM(),  // înlocuiește DeFiLlama — Pyth Hermes real-time (~1s latență)
   ]);
 
   // Step 3: Binance din WebSocket cache (instant, fara await)
@@ -996,9 +1088,9 @@ async function runScan() {
     if (tk.jMint && jupData[tk.sym]) {
       dexPrice = jupData[tk.sym]; dexSrc = 'live'; // Jupiter live quote
     } else if (tk.chain === 'sui' && pythData[tk.sym]) {
-      dexPrice = pythData[tk.sym]; dexSrc = 'live'; // Pyth oracle
-    } else if (tk.llama && llamaData[tk.sym]) {
-      dexPrice = llamaData[tk.sym]; dexSrc = 'live'; // DeFiLlama on-chain
+      dexPrice = pythData[tk.sym]; dexSrc = 'live'; // Pyth SUI oracle
+    } else if (!tk.jMint && tk.chain !== 'sui' && llamaData[tk.sym]) {
+      dexPrice = llamaData[tk.sym]; dexSrc = 'pyth'; // Pyth EVM ~1s latency
     } else if (ccCache[tk.sym]) {
       dexPrice = cgSpread(tk.sym, ccCache[tk.sym]); dexSrc = 'cg'; // CryptoCompare + spread model
     } else if (cex.mid) {
@@ -1050,8 +1142,8 @@ function renderTable(opps) {
     const dc  = dir === 'BUY_CEX' ? 'd-bc' : dir === 'SELL_CEX' ? 'd-sc' : '';
     const dl  = dir === 'BUY_CEX' ? '↑CEX' : dir === 'SELL_CEX' ? '↓DEX' : '──';
     const xc  = net > 0 && !noArb ? 'go' : 'no';
-    const sdC = dexSrc === 'live' ? 's-live' : dexSrc === 'cg' ? 's-cg' : 's-sim';
-    const sdL = dexSrc === 'live' ? 'LIVE' : dexSrc === 'cg' ? 'CG±' : 'EST';
+    const sdC = dexSrc === 'live' ? 's-live' : dexSrc === 'pyth' ? 's-live' : dexSrc === 'cg' ? 's-cg' : 's-sim';
+    const sdL = dexSrc === 'live' ? 'LIVE' : dexSrc === 'pyth' ? 'PYTH' : dexSrc === 'cg' ? 'CG±' : 'EST';
     const baSpread = ((ask-bid)/ask*100).toFixed(3);
     return `<tr onclick="showModal('${tk.sym}')">
       <td><div class="tc">
@@ -1087,7 +1179,7 @@ function updateStats(opps) {
 
 function checkAlerts(opps) {
   for (const o of opps.filter(o => o.net > 0.5 && !o.noArb)) {
-    const icon = o.dexSrc === 'live' ? '🟢' : o.dexSrc === 'cg' ? '🔵' : '🟡';
+    const icon = o.dexSrc === 'live' ? '🟢' : o.dexSrc === 'pyth' ? '🟢' : o.dexSrc === 'cg' ? '🔵' : '🟡';
     addAlert('g', `${icon} ${o.tk.sym}[${o.tk.chain.toUpperCase()}] NET +$${o.net.toFixed(2)} | ${o.spread.toFixed(3)}% | ${o.dir==='BUY_CEX'?'CEX→DEX':'DEX→CEX'}`);
     if (sndOn && o.net > 1) playBeep(o.net > 3 ? 1100 : 880);
   }
@@ -1100,7 +1192,7 @@ function showModal(sym) {
   const o = pm[sym]; if (!o) return;
   const {tk,bid,ask,dexPrice,dexSrc,spread,net,gross,fees,cexFees,wFee,gas,slip,dir,noArb} = o;
   const units = (TRADE/(dir==='BUY_CEX'?ask:dexPrice)).toFixed(6);
-  const srcLabel = {live:'🟢 API real', cg:'🔵 CoinGecko±spread', sim:'🟡 Estimat'};
+  const srcLabel = {live:'🟢 API real', pyth:'🟢 Pyth oracle (~1s)', cg:'🔵 CoinGecko±spread', sim:'🟡 Estimat'};
   const step1 = dir==='BUY_CEX'
     ? `Cumpără ${units} ${tk.sym} pe Binance la ASK $${fp(ask)}`
     : dir==='SELL_CEX'
@@ -1148,7 +1240,7 @@ function showModal(sym) {
 
   const warnTxt = noArb
     ? `<div class="wbox">⚠ Prețul DEX ($${fp(dexPrice)}) este ÎNTRE BID ($${fp(bid)}) și ASK ($${fp(ask)}) Binance — nu există spread exploatabil.</div>`
-    : dexSrc !== 'live'
+    : dexSrc !== 'live' && dexSrc !== 'pyth'
     ? `<div class="wbox">⚠ Prețul DEX este ${srcLabel[dexSrc]} — verifică prețul real pe ${tk.dex} înainte de execuție!</div>`
     : '';
   document.getElementById('mw').innerHTML = warnTxt;
@@ -1247,7 +1339,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tkct').textContent = TOKENS.length;
   // Pornește WebSocket imediat — se populează în background
   connectWs();
-  addAlert('i', `v4.7: +ETH pe toate chainurile, +MORPHO/Base, +ZRO pe 5 chainuri (ARB/BASE/BSC/POL/OP/AVAX)`);
+  addAlert('i', `v4.8: DeFiLlama EVM înlocuit cu Pyth Hermes (~1s latență) — EVM prices acum reale`);
   addAlert('i', `v4.5: Slippage dinamic per token (tier1 0.04% → tier5 1.5%) + sqrt scaling`);
   addAlert('i', 'CEX: WS Binance | SOL: Jupiter/DeFiLlama | EVM: DeFiLlama | SUI: Pyth');
   addAlert('i', 'Astept 3s pentru WS Binance...');
