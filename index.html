@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEX·DEX ARB SCANNER v4.5</title>
+<title>CEX·DEX ARB SCANNER v4.6</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
@@ -226,7 +226,7 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
   <div class="logo">
     <div class="logo-hex">ARB</div>
     <div>
-      <div class="logo-name">CEX · DEX SCANNER v4.5</div>
+      <div class="logo-name">CEX · DEX SCANNER v4.6</div>
       <div class="logo-sub">WS BINANCE · DEFILLAMA SOL · PYTH SUI · DEFILLAMA EVM · CRYPTOCOMPARE</div>
     </div>
   </div>
@@ -421,6 +421,8 @@ const TIER = {
   GNS:'tier4',RDNT:'tier4',AERO:'tier4',SAND:'tier4',MANA:'tier4',XVS:'tier4',
   QI:'tier4',PERP:'tier4',MNGO:'tier4',
   BAKE:'tier5',BRETT:'tier5',VIRTUAL:'tier5',HIGHER:'tier5',POPCAT:'tier5',NS:'tier5',
+  PENGU:'tier4',PUMP:'tier4',ORCA:'tier3',PNUT:'tier4',FARTCOIN:'tier4',
+  TRUMP:'tier3',GOAT:'tier5',MOODENG:'tier5',
 };
 
 function cgSpread(sym, price) {
@@ -598,6 +600,32 @@ const TOKENS = [
    pair:'PERPUSDC',  dex:'Uniswap/OP', url:'https://app.uniswap.org/#/swap?chain=optimism',
    wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'perpetual-protocol',
    llama:'optimism:0x9e1028F5F1D5eDE59748FFceE5532509976840E0'},
+
+  // ── SOLANA EXTRA — Jupiter live prices ──────────────
+  {sym:'PENGU',  name:'Pudgy Penguins', chain:'sol',color:'#60a5fa',bg:'rgba(96,165,250,.15)',
+   pair:'PENGUUSDC',  dex:'Jupiter',    url:'https://jup.ag/swap/USDC-PENGU',
+   wFee:0.30,gas:0.001, jMint:'2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',jDec:6, cg:'pudgy-penguins'},
+  {sym:'PUMP',   name:'Pump.fun',       chain:'sol',color:'#a3e635',bg:'rgba(163,230,53,.15)',
+   pair:'PUMPUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-PUMP',
+   wFee:0.30,gas:0.001, jMint:'9BB6NFECJBcTNnLkoPG7PeGjCvBBNnBSrFuQSgWpump',jDec:6, cg:'pump-fun'},
+  {sym:'ORCA',   name:'Orca DEX',       chain:'sol',color:'#22d3ee',bg:'rgba(34,211,238,.15)',
+   pair:'ORCAUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-ORCA',
+   wFee:0.30,gas:0.001, jMint:'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE',jDec:6, cg:'orca'},
+  {sym:'PNUT',   name:'Peanut Squirrel',chain:'sol',color:'#d97706',bg:'rgba(217,119,6,.15)',
+   pair:'PNUTUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-PNUT',
+   wFee:0.30,gas:0.001, jMint:'2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump',jDec:6, cg:'peanut-the-squirrel'},
+  {sym:'FARTCOIN',name:'Fartcoin',      chain:'sol',color:'#84cc16',bg:'rgba(132,204,22,.15)',
+   pair:'FARTCOINUSDC',dex:'Jupiter',   url:'https://jup.ag/swap/USDC-FARTCOIN',
+   wFee:0.30,gas:0.001, jMint:'9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump',jDec:6, cg:'fartcoin'},
+  {sym:'TRUMP',  name:'Official Trump',  chain:'sol',color:'#ef4444',bg:'rgba(239,68,68,.15)',
+   pair:'TRUMPUSDC',  dex:'Jupiter',    url:'https://jup.ag/swap/USDC-TRUMP',
+   wFee:0.30,gas:0.001, jMint:'6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN',jDec:6, cg:'official-trump'},
+  {sym:'GOAT',   name:'Goat of AI',     chain:'sol',color:'#f59e0b',bg:'rgba(245,158,11,.15)',
+   pair:'GOATUSDC',   dex:'Jupiter',    url:'https://jup.ag/swap/USDC-GOAT',
+   wFee:0.30,gas:0.001, jMint:'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump',jDec:6, cg:'goat'},
+  {sym:'MOODENG',name:'Moo Deng',       chain:'sol',color:'#fb923c',bg:'rgba(251,146,60,.15)',
+   pair:'MOODENGUSDC', dex:'Jupiter',   url:'https://jup.ag/swap/USDC-MOODENG',
+   wFee:0.30,gas:0.001, jMint:'ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzc8FC',jDec:6, cg:'moo-deng'},
 
   // ── SUI — Pyth oracle prices ──────────────────────────
   // Price IDs from https://pyth.network/price-feeds (Pythnet source)
@@ -1170,7 +1198,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tkct').textContent = TOKENS.length;
   // Pornește WebSocket imediat — se populează în background
   connectWs();
-  addAlert('i', `v4.5: DEX prices on-chain reale pentru toți tokenii EVM (nu mai coingecko:)`);
+  addAlert('i', `v4.6: +8 tokeni noi SOL: PENGU/PUMP/ORCA/PNUT/FARTCOIN/TRUMP/GOAT/MOODENG (toate USDC)`);
   addAlert('i', `v4.5: Slippage dinamic per token (tier1 0.04% → tier5 1.5%) + sqrt scaling`);
   addAlert('i', 'CEX: WS Binance | SOL: Jupiter/DeFiLlama | EVM: DeFiLlama | SUI: Pyth');
   addAlert('i', 'Astept 3s pentru WS Binance...');
