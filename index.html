@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEX·DEX ARB SCANNER v4.4</title>
+<title>CEX·DEX ARB SCANNER v4.5</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
@@ -226,7 +226,7 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
   <div class="logo">
     <div class="logo-hex">ARB</div>
     <div>
-      <div class="logo-name">CEX · DEX SCANNER v4.4</div>
+      <div class="logo-name">CEX · DEX SCANNER v4.5</div>
       <div class="logo-sub">WS BINANCE · DEFILLAMA SOL · PYTH SUI · DEFILLAMA EVM · CRYPTOCOMPARE</div>
     </div>
   </div>
@@ -382,8 +382,26 @@ td.mono{font-family:'Share Tech Mono',monospace;font-size:11px;}
 // CONFIG
 // ═══════════════════════════════════════════════════
 const CEX_FEE = 0.00075; // 0.075% per leg
-const SLIP    = 0.002;   // 0.2%
 let   TRADE   = 500;
+
+// ── SLIPPAGE DINAMIC ─────────────────────────────────────
+// Model: slippage = base_rate * sqrt(tradeSize / refSize)
+// Bazat pe date reale DEX: $500 trade pe tier1 ~0.04%, tier5 ~1.50%
+// sqrt scaling: dublarea trade-ului creste slippage ~41%, nu 100%
+const SLIP_BASE = {
+  tier1: 0.0004,  // ETH, BNB, SOL, AVAX, POL  — pool >$50M
+  tier2: 0.0012,  // LINK, UNI, ARB, AAVE, WIF  — pool $10-50M
+  tier3: 0.0030,  // CAKE, RAY, GMX, PYTH, JITO — pool $2-10M
+  tier4: 0.0070,  // PENDLE, VELO, AERO, SAND   — pool $0.5-2M
+  tier5: 0.0150,  // BAKE, BRETT, HIGHER, POPCAT — pool <$0.5M
+};
+const REF_SIZE = 500;
+
+function dynamicSlip(sym, tradeSize) {
+  const base  = SLIP_BASE[TIER[sym] || 'tier4'];
+  const scale = Math.sqrt(tradeSize / REF_SIZE);
+  return base * scale;
+}
 
 // Liquidity tiers → realistic half-spread applied to CoinGecko price
 // when no live DEX API is available
@@ -449,19 +467,19 @@ const TOKENS = [
    pair:'MNGOUSDT',  dex:'Jupiter',    url:'https://jup.ag/swap/USDC-MNGO',
    wFee:0.30,gas:0.001, jMint:'MangoCzJ36AjZyKwVneo188JBXGxAcQTDwwvReSCqHn',jDec:6,cg:'mango-markets'},
 
-  // ── ARBITRUM — DeFiLlama live + CG spread fallback ──
+  // ── ARBITRUM — DeFiLlama on-chain addresses (real DEX prices) ──
   {sym:'ETH',    name:'Ethereum',      chain:'arb',color:'#627eea',bg:'rgba(98,126,234,.15)',
    pair:'ETHUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
    wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'ethereum',
-   llama:'coingecko:ethereum'},
+   llama:'arbitrum:0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'},
   {sym:'LINK',   name:'Chainlink',     chain:'arb',color:'#2a5ada',bg:'rgba(42,90,218,.15)',
    pair:'LINKUSDC',  dex:'1inch/Arb',  url:'https://app.1inch.io/#/42161/simple/swap/LINK/USDC',
    wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'chainlink',
-   llama:'coingecko:chainlink'},
+   llama:'arbitrum:0xf97f4df75117a78c1A5a0DBb814Af92458539FB4'},
   {sym:'UNI',    name:'Uniswap',       chain:'arb',color:'#ff007a',bg:'rgba(255,0,122,.15)',
    pair:'UNIUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
    wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'uniswap',
-   llama:'coingecko:uniswap'},
+   llama:'arbitrum:0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0'},
   {sym:'ARB',    name:'Arbitrum',      chain:'arb',color:'#1ca6ff',bg:'rgba(28,166,255,.15)',
    pair:'ARBUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
    wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'arbitrum',
@@ -472,19 +490,24 @@ const TOKENS = [
    llama:'arbitrum:0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a'},
   {sym:'PENDLE', name:'Pendle',        chain:'arb',color:'#a78bfa',bg:'rgba(167,139,250,.15)',
    pair:'PENDLEUSDC',dex:'Pendle AMM', url:'https://app.pendle.finance/trade/swap',
-   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'pendle'},
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'pendle',
+   llama:'arbitrum:0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8'},
   {sym:'LDO',    name:'Lido DAO',      chain:'arb',color:'#17abbc',bg:'rgba(23,171,188,.15)',
    pair:'LDOUSDC',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
-   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'lido-dao'},
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'lido-dao',
+   llama:'arbitrum:0x13Ad51ed4F1B7e9Dc168d8a00cB3f4dDD85EfA60'},
   {sym:'AAVE',   name:'Aave',          chain:'arb',color:'#b6509e',bg:'rgba(182,80,158,.15)',
    pair:'AAVEUSDC',  dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
-   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'aave'},
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'aave',
+   llama:'arbitrum:0xba5DdD1f9d7F570dc94a51479a000E3BCE967196'},
   {sym:'GNS',    name:'Gains Network', chain:'arb',color:'#00e676',bg:'rgba(0,230,118,.15)',
    pair:'GNSUSDT',   dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
-   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'gains-network'},
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'gains-network',
+   llama:'arbitrum:0x18c11FD286C5EC11c3b683Caa813B77f5163A122'},
   {sym:'RDNT',   name:'Radiant',       chain:'arb',color:'#7b5ea7',bg:'rgba(123,94,167,.15)',
    pair:'RDNTUSDT',  dex:'Uniswap/Arb',url:'https://app.uniswap.org/#/swap?chain=arbitrum',
-   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'radiant-capital'},
+   wFee:0.20,gas:0.10, jMint:null,jDec:0, cg:'radiant-capital',
+   llama:'arbitrum:0x3082CC23568eA640225c2467653dB90e9250AaA0'},
 
   // ── BASE ────────────────────────────────────────────
   {sym:'AERO',   name:'Aerodrome',     chain:'base',color:'#ff4b4b',bg:'rgba(255,75,75,.15)',
@@ -501,13 +524,14 @@ const TOKENS = [
    llama:'base:0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b'},
   {sym:'HIGHER', name:'Higher',        chain:'base',color:'#06b6d4',bg:'rgba(6,182,212,.15)',
    pair:'HIGHERUSDT', dex:'Uniswap/Base',url:'https://app.uniswap.org/#/swap?chain=base',
-   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'higher'},
+   wFee:0.15,gas:0.10, jMint:null,jDec:0, cg:'higher',
+   llama:'base:0x0578d8A44db98B23BF096A382e016e29a5Ce0ffe'},
 
   // ── BSC ─────────────────────────────────────────────
   {sym:'BNB',    name:'BNB',           chain:'bsc',color:'#f0b90b',bg:'rgba(240,185,11,.15)',
    pair:'BNBUSDC',   dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
    wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'binancecoin',
-   llama:'coingecko:binancecoin'},
+   llama:'bsc:0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'},
   {sym:'CAKE',   name:'PancakeSwap',   chain:'bsc',color:'#1fc7d4',bg:'rgba(31,199,212,.15)',
    pair:'CAKEUSDC',  dex:'PancakeSwap',url:'https://pancakeswap.finance/swap',
    wFee:0.10,gas:0.05, jMint:null,jDec:0, cg:'pancakeswap-token',
@@ -532,16 +556,18 @@ const TOKENS = [
    llama:'polygon:0xB5C064F955D8e7F38fE0460C556a72987494eE17'},
   {sym:'SAND',   name:'The Sandbox',   chain:'pol',color:'#04adef',bg:'rgba(4,173,239,.15)',
    pair:'SANDUSDC',  dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
-   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'the-sandbox'},
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'the-sandbox',
+   llama:'polygon:0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683'},
   {sym:'MANA',   name:'Decentraland',  chain:'pol',color:'#ff2d55',bg:'rgba(255,45,85,.15)',
    pair:'MANAUSDC',  dex:'QuickSwap',  url:'https://quickswap.exchange/#/swap',
-   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'decentraland'},
+   wFee:0.08,gas:0.05, jMint:null,jDec:0, cg:'decentraland',
+   llama:'polygon:0xA1c57f48F0Deb89f569dFbE6E2B7f46D33606fD4'},
 
   // ── AVALANCHE ───────────────────────────────────────
   {sym:'AVAX',   name:'Avalanche',     chain:'avax',color:'#e84142',bg:'rgba(232,65,66,.15)',
    pair:'AVAXUSDC',  dex:'Trader Joe', url:'https://traderjoexyz.com/avalanche/trade',
    wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'avalanche-2',
-   llama:'coingecko:avalanche-2'},
+   llama:'avax:0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7'},
   {sym:'JOE',    name:'Trader Joe',    chain:'avax',color:'#ff6b35',bg:'rgba(255,107,53,.15)',
    pair:'JOEUSDC',   dex:'Trader Joe', url:'https://traderjoexyz.com/avalanche/trade',
    wFee:0.15,gas:0.08, jMint:null,jDec:0, cg:'joe',
@@ -570,7 +596,8 @@ const TOKENS = [
    llama:'optimism:0x8700dAec35aF8Ff88c16BdF0418774CB3D7599B4'},
   {sym:'PERP',   name:'Perpetual',     chain:'op',color:'#3aff8f',bg:'rgba(58,255,143,.15)',
    pair:'PERPUSDC',  dex:'Uniswap/OP', url:'https://app.uniswap.org/#/swap?chain=optimism',
-   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'perpetual-protocol'},
+   wFee:0.10,gas:0.10, jMint:null,jDec:0, cg:'perpetual-protocol',
+   llama:'optimism:0x9e1028F5F1D5eDE59748FFceE5532509976840E0'},
 
   // ── SUI — Pyth oracle prices ──────────────────────────
   // Price IDs from https://pyth.network/price-feeds (Pythnet source)
@@ -838,7 +865,7 @@ function calcOpp(tk, cexData, dexPrice, dexSrc) {
   }
 
   const cexFees = TRADE * CEX_FEE * 2;
-  const slipFee = TRADE * SLIP;
+  const slipFee = TRADE * dynamicSlip(tk.sym, TRADE);
   const fees    = cexFees + tk.wFee + tk.gas + slipFee;
   const gross   = TRADE * (spread / 100);
   const net     = (dir === 'IN_SPREAD') ? (gross - fees) * -1 : gross - fees;
@@ -1033,7 +1060,7 @@ function showModal(sym) {
         Trade 2×0.075%: $${cexFees.toFixed(3)}<br>
         Withdraw: $${wFee.toFixed(2)}<br>
         Gas DEX: $${gas.toFixed(4)}<br>
-        Slippage 0.2%: $${slip.toFixed(3)}
+        Slippage ${(dynamicSlip(tk.sym, TRADE)*100).toFixed(3)}%: $${slip.toFixed(3)}
       </div>
     </div>`;
 
@@ -1143,7 +1170,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tkct').textContent = TOKENS.length;
   // Pornește WebSocket imediat — se populează în background
   connectWs();
-  addAlert('i', `v4.3: CoinGecko INLOCUIT cu CryptoCompare (CORS open)`);
+  addAlert('i', `v4.5: DEX prices on-chain reale pentru toți tokenii EVM (nu mai coingecko:)`);
+  addAlert('i', `v4.5: Slippage dinamic per token (tier1 0.04% → tier5 1.5%) + sqrt scaling`);
   addAlert('i', 'CEX: WS Binance | SOL: Jupiter/DeFiLlama | EVM: DeFiLlama | SUI: Pyth');
   addAlert('i', 'Astept 3s pentru WS Binance...');
   setTimeout(() => doScan(), 3000);
